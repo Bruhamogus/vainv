@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Uniswap Vain → Ethereum Swap</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.6.1/dist/web3.min.js"></script>
-    <script src="https://unpkg.com/@uniswap/sdk-core@3.0.1/dist/index.min.js"></script>
-    <script src="https://unpkg.com/@uniswap/v3-sdk@3.0.1/dist/index.min.js"></script>
+    <script src="https://unpkg.com/@uniswap/sdk-core@3.0.1/dist/index.umd.min.js"></script>
+    <script src="https://unpkg.com/@uniswap/v3-sdk@3.0.1/dist/index.umd.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -118,7 +118,7 @@
 
             try {
                 // Initialisiere Uniswap SDK und Token
-                const { Token, CurrencyAmount, Route, Trade, Pair } = require('@uniswap/sdk-core');
+                const { Token, CurrencyAmount, Route, Trade, Pair } = window.UniswapSDKCore;
                 const tokenIn = new Token(1, VAIN_TOKEN_ADDRESS, 18); // Dein Vain Token
                 const tokenOut = new Token(1, ETH_ADDRESS, 18); // Ethereum (WETH) als Token
                 const provider = new Web3Provider(web3.currentProvider);
@@ -163,3 +163,4 @@
     </script>
 </body>
 </html>
+    
