@@ -118,6 +118,7 @@
 
             try {
                 // Initialisiere Uniswap SDK und Token
+                const { Token, CurrencyAmount, Route, Trade, Pair } = require('@uniswap/sdk-core');
                 const tokenIn = new Token(1, VAIN_TOKEN_ADDRESS, 18); // Dein Vain Token
                 const tokenOut = new Token(1, ETH_ADDRESS, 18); // Ethereum (WETH) als Token
                 const provider = new Web3Provider(web3.currentProvider);
