@@ -3,42 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MetaMask Verbindung</title>
+    <title>Uniswap Ethereum ↔ Vain Swap</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.6.1/dist/web3.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-        }
-        #connectButton {
-            background-color: #3c3c3c;
-            color: white;
-            font-size: 18px;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #connectButton:hover {
-            background-color: #555;
-        }
-    </style>
+    <script src="https://unpkg.com/@uniswap/sdk-core@3.0.1/dist/index.min.js"></script>
+    <script src="https://unpkg.com/@uniswap/v3-sdk@3.0.1/dist/index.min.js"></script>
 </head>
 <body>
     <button id="connectButton">Mit MetaMask verbinden</button>
+    <button id="swapButton">Ethereum → Vain Swap</button>
 
     <script>
+        const UNISWAP_ROUTER_ADDRESS = "0x5C69bEe701ef814a2B6a3EDD4B4852B1F62A4a5D"; // Uniswap V2 Router Contract Adresse
+        const VAIN_TOKEN_ADDRESS = "0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a"; // Vain Token Contract Adresse
+        const ETH_ADDRESS = "0x0000000000000000000000000000000000000000"; // Ethereum Address (WETH)
+
+        let web3;
+        let accounts;
+
         // Funktion zum Verbinden mit MetaMask
         async function connectMetaMask() {
             if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
                 try {
-                    // Anfordern des Zugriffs auf das Wallet
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    accounts = await web3.eth.requestAccounts();
                     alert("Erfolgreich verbunden mit: " + accounts[0]);
                 } catch (error) {
                     alert("Verbindung mit MetaMask fehlgeschlagen: " + error.message);
@@ -48,8 +35,53 @@
             }
         }
 
-        // Event-Listener für den Button
+        // Funktion zum Durchführen eines Swaps
+        async function swapEthereumToVain(amountInEther) {
+            if (!accounts) {
+                alert("Bitte mit MetaMask verbinden.");
+                return;
+            }
+
+            // Initialisiere Uniswap SDK und Token
+            const tokenIn = new Token(1, ETH_ADDRESS, 18); // Ethereum (WETH) als Token
+            const tokenOut = new Token(1, VAIN_TOKEN_ADDRESS, 18); // Dein Vain (V) Token
+            const provider = new Web3Provider(web3.currentProvider);
+            const router = new UniswapRouter(provider);
+
+            // Erstelle eine SwapTransaktion
+            const amountIn = CurrencyAmount.fromRawAmount(tokenIn, Web3.utils.toWei(amountInEther.toString(), 'ether'));
+            const route = new Route([new Pair(tokenIn, tokenOut)], tokenIn);
+            const trade = Trade.exactIn(route, amountIn);
+
+            // Berechne den Swapbetrag und den Gaspreis
+            const slippageTolerance = new Percent(50, 10000); // 0.5% Slippage
+            const amountOutMin = trade.minimumAmountOut(slippageTolerance).toFixed();
+            const path = [ETH_ADDRESS, VAIN_TOKEN_ADDRESS];
+            const to = accounts[0]; // Die Adresse des Benutzers
+            const deadline = Math.floor(Date.now() / 1000) + 60 * 10; // 10 Minuten als Deadline
+
+            // Sende die Transaktion
+            const transaction = {
+                to: UNISWAP_ROUTER_ADDRESS,
+                data: router.encodeSwapExactTokensForTokensInput(amountIn, amountOutMin, path, to, deadline),
+                value: Web3.utils.toWei(amountInEther.toString(), 'ether') // Ether für den Swap
+            };
+
+            try {
+                const tx = await web3.eth.sendTransaction(transaction);
+                console.log(tx);
+                alert("Swap erfolgreich durchgeführt.");
+            } catch (error) {
+                console.error(error);
+                alert("Fehler beim Swap.");
+            }
+        }
+
         document.getElementById('connectButton').addEventListener('click', connectMetaMask);
+        document.getElementById('swapButton').addEventListener('click', function() {
+            const amountInEther = 0.1; // Beispiel: 0.1 Ether für den Swap
+            swapEthereumToVain(amountInEther);
+        });
     </script>
 </body>
 </html>
