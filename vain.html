@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vain (V) zu Euro Umrechner mit Uniswap</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.6.1/dist/web3.min.js"></script>
+</head>
+<body>
+    <h1>Vain (V) zu Euro Umrechner mit Uniswap</h1>
+    
+    <label for="amount">Vain (V) Betrag:</label>
+    <input type="number" id="amount" placeholder="Geben Sie den Betrag ein">
+    <button onclick="convertToEuro()">Umrechnen</button>
+    
+    <p id="result">Ergebnis: </p>
+
+    <script>
+        const web3 = new Web3(window.ethereum);
+        const vainTokenAddress = '0xf958d21C1a59ba6C477636231067AF5C265eCd72';
+        const eurUsdPriceFeedAddress = '0xc91D87E81faB8f93699ECf7Ee9B44D11e1D53F0F';
+        const uniswapRouterAddress = '0x5C69bEe701ef814a2B6a3EDD46e50D1e5eDa3bD0';  // Uniswap V2 Router Adresse
+
+        // Chainlink Preisfeed Interface
+        const priceFeedABI = [
+            {
+                "constant": true,
+                "inputs": [],
+                "name": "latestRoundData",
+                "outputs": [
+                    { "name": "roundId", "type": "uint80" },
+                    { "name": "answer", "type": "int256" },
+                    { "name": "startedAt", "type": "uint256" },
+                    { "name": "updatedAt", "type": "uint256" },
+                    { "name": "answeredInRound", "type": "uint256" }
+                ],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        // Uniswap Router ABI
+        const uniswapRouterABI = [
+            {
+                "constant": true,
+                "inputs": [
+                    { "name": "amountIn", "type": "uint256" },
+                    { "name": "path", "type": "address[]" },
+                    { "name": "to", "type": "address" },
+                    { "name": "deadline", "type": "uint256" }
+                ],
+                "name": "swapExactTokensForETH",
+                "outputs": [
+                    { "name": "amounts", "type": "uint256[]" }
+                ],
+                "payable": false,
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
+        async function convertToEuro() {
+            const amount = document.getElementById('amount').value;
+
+            if (!amount) {
+                alert("Bitte geben Sie einen Betrag ein.");
+                return;
+            }
+
+            // Abrufen des EUR/USD Preises
+            const priceFeed = new web3.eth.Contract(priceFeedABI, eurUsdPriceFeedAddress);
+            const priceData = await priceFeed.methods.latestRoundData().call();
+            const eurToUsd = web3.utils.fromWei(priceData.answer, 'ether');
+
+            // Umrechnung von Vain (V) in ETH über Uniswap
+            const amountInWei = web3.utils.toWei(amount, 'ether');  // Umrechnung in Wei
+            const uniswapRouter = new web3.eth.Contract(uniswapRouterABI, uniswapRouterAddress);
+            
+            // Konvertierung von Vain (V) zu ETH
+            const path = [vainTokenAddress, '0x0000000000000000000000000000000000000000'];  // Uniswap Path für Vain -> ETH (ETH als WETH)
+            const toAddress = await web3.eth.getCoinbase();  // Der Sender ist der Nutzer
+            const deadline = Math.floor(Date.now() / 1000) + 60 * 20;  // 20 Minuten Frist
+
+            // Berechnung der ETH-Beträge, die durch den Tausch erhalten werden
+            const amountsOut = await uniswapRouter.methods.getAmountsOut(amountInWei, path).call();
+            const amountOutETH = amountsOut[1];  // Der erhaltene Betrag in ETH
+
+            // Umrechnung von ETH zu Euro
+            const ethToEur = eurToUsd;  // EUR/USD Preisfeed
+            const euroValue = (web3.utils.fromWei(amountOutETH, 'ether') * ethToEur).toFixed(2);
+
+            // Ergebnis anzeigen
+            document.getElementById('result').innerText = `Wert von ${amount} Vain (V) in Euro: ${euroValue} EUR`;
+        }
+    </script>
+</body>
+</html>
