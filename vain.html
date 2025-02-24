@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uniswap Ethereum ↔ Vain Swap</title>
+    <title>Uniswap Vain → Ethereum Swap</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.6.1/dist/web3.min.js"></script>
     <script src="https://unpkg.com/@uniswap/sdk-core@3.0.1/dist/index.min.js"></script>
     <script src="https://unpkg.com/@uniswap/v3-sdk@3.0.1/dist/index.min.js"></script>
@@ -55,9 +55,9 @@
 </head>
 <body>
     <button id="connectButton">Mit MetaMask verbinden</button>
-    <input type="number" id="amountInput" placeholder="Menge an ETH" />
-    <button id="swapButton">Ethereum → Vain Swap</button>
-    <div id="amountDisplay">Du möchtest <span id="amountText">0</span> ETH tauschen</div>
+    <input type="number" id="amountInput" placeholder="Menge an Vain" />
+    <button id="swapButton">Vain → Ethereum Swap</button>
+    <div id="amountDisplay">Du möchtest <span id="amountText">0</span> Vain tauschen</div>
     <div id="errorMessage"></div>
 
     <script>
@@ -83,21 +83,28 @@
             }
         }
 
-        // Funktion zum Anzeigen von Fehlermeldungen
+        // Funktion zum Anzeigen von Fehlermeldungen und Kopieren in die Zwischenablage
         function showError(message) {
             const errorMessage = document.getElementById('errorMessage');
             errorMessage.textContent = message;
             errorMessage.style.display = "block";
+            // Kopiere die Fehlermeldung in die Zwischenablage
+            navigator.clipboard.writeText(message).then(() => {
+                console.log("Fehlermeldung in Zwischenablage kopiert");
+            }).catch(err => {
+                console.error("Fehler beim Kopieren in die Zwischenablage", err);
+            });
+
             setTimeout(() => {
                 errorMessage.style.display = "none";
             }, 5000);
         }
 
         // Funktion zum Durchführen eines Swaps
-        async function swapEthereumToVain() {
-            const amountInEther = document.getElementById('amountInput').value;
-            if (!amountInEther || isNaN(amountInEther) || amountInEther <= 0) {
-                showError("Bitte gib eine gültige Menge an Ethereum ein.");
+        async function swapVainToEthereum() {
+            const amountInVain = document.getElementById('amountInput').value;
+            if (!amountInVain || isNaN(amountInVain) || amountInVain <= 0) {
+                showError("Bitte gib eine gültige Menge an Vain ein.");
                 return;
             }
 
@@ -107,24 +114,24 @@
             }
 
             // Anzeigen der gewünschten Menge
-            document.getElementById('amountText').textContent = amountInEther;
+            document.getElementById('amountText').textContent = amountInVain;
 
             try {
                 // Initialisiere Uniswap SDK und Token
-                const tokenIn = new Token(1, ETH_ADDRESS, 18); // Ethereum (WETH) als Token
-                const tokenOut = new Token(1, VAIN_TOKEN_ADDRESS, 18); // Dein Vain (V) Token
+                const tokenIn = new Token(1, VAIN_TOKEN_ADDRESS, 18); // Dein Vain Token
+                const tokenOut = new Token(1, ETH_ADDRESS, 18); // Ethereum (WETH) als Token
                 const provider = new Web3Provider(web3.currentProvider);
                 const router = new UniswapRouter(provider);
 
                 // Erstelle eine SwapTransaktion
-                const amountIn = CurrencyAmount.fromRawAmount(tokenIn, Web3.utils.toWei(amountInEther.toString(), 'ether'));
+                const amountIn = CurrencyAmount.fromRawAmount(tokenIn, Web3.utils.toWei(amountInVain.toString(), 'ether'));
                 const route = new Route([new Pair(tokenIn, tokenOut)], tokenIn);
                 const trade = Trade.exactIn(route, amountIn);
 
                 // Berechne den Swapbetrag und den Gaspreis
                 const slippageTolerance = new Percent(50, 10000); // 0.5% Slippage
                 const amountOutMin = trade.minimumAmountOut(slippageTolerance).toFixed();
-                const path = [ETH_ADDRESS, VAIN_TOKEN_ADDRESS];
+                const path = [VAIN_TOKEN_ADDRESS, ETH_ADDRESS];
                 const to = accounts[0]; // Die Adresse des Benutzers
                 const deadline = Math.floor(Date.now() / 1000) + 60 * 10; // 10 Minuten als Deadline
 
@@ -132,7 +139,7 @@
                 const transaction = {
                     to: UNISWAP_ROUTER_ADDRESS,
                     data: router.encodeSwapExactTokensForTokensInput(amountIn, amountOutMin, path, to, deadline),
-                    value: Web3.utils.toWei(amountInEther.toString(), 'ether') // Ether für den Swap
+                    value: Web3.utils.toWei(amountInVain.toString(), 'ether') // Vain für den Swap
                 };
 
                 const tx = await web3.eth.sendTransaction(transaction);
@@ -145,12 +152,12 @@
         }
 
         document.getElementById('connectButton').addEventListener('click', connectMetaMask);
-        document.getElementById('swapButton').addEventListener('click', swapEthereumToVain);
+        document.getElementById('swapButton').addEventListener('click', swapVainToEthereum);
 
         // Aktualisiere die angezeigte Menge bei Eingabeänderung
         document.getElementById('amountInput').addEventListener('input', function() {
-            const amountInEther = this.value;
-            document.getElementById('amountText').textContent = amountInEther;
+            const amountInVain = this.value;
+            document.getElementById('amountText').textContent = amountInVain;
         });
     </script>
 </body>
