@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Uniswap Vain → Ethereum Swap</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.6.1/dist/web3.min.js"></script>
-    <script src="https://unpkg.com/@uniswap/sdk-core@3.0.1/dist/index.umd.min.js"></script>
-    <script src="https://unpkg.com/@uniswap/v3-sdk@3.0.1/dist/index.umd.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -117,40 +115,64 @@
             document.getElementById('amountText').textContent = amountInVain;
 
             try {
-                // Sicherstellen, dass Uniswap SDK korrekt geladen wurde
-                const { Token, CurrencyAmount, Route, Trade, Pair } = window.UniswapSDKCore;
-                const { Web3Provider } = window.ethers;
+                // Erstellen des Token Contracts für Vain
+                const tokenContract = new web3.eth.Contract([
+                    {
+                        "constant": true,
+                        "inputs": [],
+                        "name": "decimals",
+                        "outputs": [
+                            { "name": "", "type": "uint8" }
+                        ],
+                        "payable": false,
+                        "stateMutability": "view",
+                        "type": "function"
+                    },
+                    {
+                        "constant": false,
+                        "inputs": [
+                            { "name": "to", "type": "address" },
+                            { "name": "value", "type": "uint256" }
+                        ],
+                        "name": "transfer",
+                        "outputs": [{ "name": "", "type": "bool" }],
+                        "payable": false,
+                        "stateMutability": "nonpayable",
+                        "type": "function"
+                    }
+                ], VAIN_TOKEN_ADDRESS);
 
-                if (!Token || !CurrencyAmount || !Route || !Trade || !Pair) {
-                    showError("Uniswap SDK-Core konnte nicht geladen werden.");
-                    return;
-                }
+                const decimals = await tokenContract.methods.decimals().call();
+                const amountInWei = web3.utils.toWei(amountInVain.toString(), 'ether');
 
-                const tokenIn = new Token(1, VAIN_TOKEN_ADDRESS, 18); // Dein Vain Token
-                const tokenOut = new Token(1, ETH_ADDRESS, 18); // Ethereum (WETH) als Token
-                const provider = new Web3Provider(web3.currentProvider);
-                const router = new UniswapRouter(provider);
+                // Berechne den Swapbetrag (hier einfach als Beispiel)
+                const amountOutMin = amountInWei; // Placeholder für die Berechnung von slippage und minimalem Ausgang
 
-                // Erstelle eine SwapTransaktion
-                const amountIn = CurrencyAmount.fromRawAmount(tokenIn, Web3.utils.toWei(amountInVain.toString(), 'ether'));
-                const route = new Route([new Pair(tokenIn, tokenOut)], tokenIn);
-                const trade = Trade.exactIn(route, amountIn);
-
-                // Berechne den Swapbetrag und den Gaspreis
-                const slippageTolerance = new Percent(50, 10000); // 0.5% Slippage
-                const amountOutMin = trade.minimumAmountOut(slippageTolerance).toFixed();
-                const path = [VAIN_TOKEN_ADDRESS, ETH_ADDRESS];
-                const to = accounts[0]; // Die Adresse des Benutzers
-                const deadline = Math.floor(Date.now() / 1000) + 60 * 10; // 10 Minuten als Deadline
-
-                // Sende die Transaktion
-                const transaction = {
+                // Transaktionsdaten für den Swap
+                const transactionData = {
+                    from: accounts[0],
                     to: UNISWAP_ROUTER_ADDRESS,
-                    data: router.encodeSwapExactTokensForTokensInput(amountIn, amountOutMin, path, to, deadline),
-                    value: Web3.utils.toWei(amountInVain.toString(), 'ether') // Vain für den Swap
+                    data: web3.eth.abi.encodeFunctionCall({
+                        name: 'swapExactTokensForTokens',
+                        type: 'function',
+                        inputs: [
+                            { type: 'uint256', name: 'amountIn' },
+                            { type: 'uint256', name: 'amountOutMin' },
+                            { type: 'address[]', name: 'path' },
+                            { type: 'address', name: 'to' },
+                            { type: 'uint256', name: 'deadline' }
+                        ]
+                    }, [
+                        amountInWei,
+                        amountOutMin,
+                        [VAIN_TOKEN_ADDRESS, ETH_ADDRESS], // Token Swap Path (Vain → WETH)
+                        accounts[0],
+                        Math.floor(Date.now() / 1000) + 60 * 10 // 10 Minuten Deadline
+                    ])
                 };
 
-                const tx = await web3.eth.sendTransaction(transaction);
+                // Sende die Transaktion
+                const tx = await web3.eth.sendTransaction(transactionData);
                 console.log(tx);
                 alert("Swap erfolgreich durchgeführt.");
             } catch (error) {
