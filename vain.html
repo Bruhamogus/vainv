@@ -117,8 +117,15 @@
             document.getElementById('amountText').textContent = amountInVain;
 
             try {
-                // Initialisiere Uniswap SDK und Token
+                // Sicherstellen, dass Uniswap SDK korrekt geladen wurde
                 const { Token, CurrencyAmount, Route, Trade, Pair } = window.UniswapSDKCore;
+                const { Web3Provider } = window.ethers;
+
+                if (!Token || !CurrencyAmount || !Route || !Trade || !Pair) {
+                    showError("Uniswap SDK-Core konnte nicht geladen werden.");
+                    return;
+                }
+
                 const tokenIn = new Token(1, VAIN_TOKEN_ADDRESS, 18); // Dein Vain Token
                 const tokenOut = new Token(1, ETH_ADDRESS, 18); // Ethereum (WETH) als Token
                 const provider = new Web3Provider(web3.currentProvider);
@@ -163,4 +170,3 @@
     </script>
 </body>
 </html>
-    
