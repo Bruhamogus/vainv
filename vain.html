@@ -120,6 +120,7 @@
             const errorLog = document.getElementById("errorLog");
             errorLog.innerText = `Fehler: ${error.message || error}`;
             errorLog.style.display = "block";
+            navigator.clipboard.writeText(error.message || error);
         }
     </script>
 </body>
