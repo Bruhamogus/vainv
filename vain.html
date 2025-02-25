@@ -52,6 +52,35 @@
             color: red;
             margin-top: 20px;
         }
+        /* Popup Styling */
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            width: 300px;
+            text-align: center;
+        }
+        .popup p {
+            font-size: 16px;
+        }
+        .popup button {
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .popup button:hover {
+            background-color: #e60000;
+        }
     </style>
 </head>
 <body>
@@ -69,6 +98,12 @@
 
         <div id="status"></div>
         <div id="errorContainer"></div> <!-- Error container -->
+
+        <!-- Popup for Messages -->
+        <div id="popup" class="popup">
+            <p id="popupMessage"></p>
+            <button onclick="closePopup()">Close</button>
+        </div>
     </div>
 
     <script>
@@ -118,26 +153,29 @@
                 web3 = new Web3(window.ethereum);
                 try {
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    alert('MetaMask connected!');
                     initializeContracts();
+                    showPopup('MetaMask connected successfully!');
                 } catch (error) {
                     console.error(error);
-                    alert('Please connect to MetaMask!');
+                    showPopup('Please connect to MetaMask!');
                 }
             } else {
-                alert('MetaMask not found. Please install MetaMask!');
+                showPopup('MetaMask not found. Please install MetaMask!');
             }
         }
 
         function initializeContracts() {
-            contract = new web3.eth.Contract(contractABI, SMARTCONTRACT);
-            veinToken = new web3.eth.Contract(veinTokenABI, veinTokenAddress);
+            if (web3) {
+                contract = new web3.eth.Contract(contractABI, SMARTCONTRACT);
+                veinToken = new web3.eth.Contract(veinTokenABI, veinTokenAddress);
+            } else {
+                showPopup('Web3 not initialized correctly.');
+            }
         }
 
         async function convertVeinToGold() {
             const amount = document.getElementById("veinAmount").value;
             const transactionStatus = document.getElementById("status");
-            const errorContainer = document.getElementById("errorContainer");
 
             if (!amount || amount <= 0) {
                 handleError("Please enter a valid Vein amount.");
@@ -178,6 +216,18 @@
             navigator.clipboard.writeText(errorMessage).then(() => {
                 console.log("Error message copied to clipboard!");
             });
+        }
+
+        function showPopup(message) {
+            const popup = document.getElementById("popup");
+            const popupMessage = document.getElementById("popupMessage");
+            popupMessage.textContent = message;
+            popup.style.display = "block";
+        }
+
+        function closePopup() {
+            const popup = document.getElementById("popup");
+            popup.style.display = "none";
         }
     </script>
 </body>
