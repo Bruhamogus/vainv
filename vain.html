@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vein to Gold Converter</title>
+    <title>Vein (V) to Gold Converter</title>
     <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dotenv/dist/main.js"></script>
 </head>
 <body>
     <h1>Vein (V) to Gold Converter</h1>
@@ -18,21 +17,17 @@
     <button onclick="convertVeinToGold()">Convert to Gold</button>
 
     <div id="status"></div>
+    <div id="errorContainer"></div> <!-- Error container -->
 
     <script>
-        // Load environment variables from .env file
-        require('dotenv').config();
-
-        // Access contract address securely
-        const SMARTCONTRACT = process.env.SMARTCONTRACT;
-
-        // Initialize web3
+        // Initialize Web3
         if (typeof window.ethereum !== 'undefined') {
             var web3 = new Web3(window.ethereum);
         } else {
             alert('Please install MetaMask or another web3 provider!');
         }
 
+        const SMARTCONTRACT = '0xbb52e681039076d964301ae2dD23e1Bd35A51b1e'; // Your contract address
         const veinTokenAddress = '0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a'; // Vein (V) contract
         const priceFeedAddress = '0x5213eBB69743b85644dbB6E25cdF994aFBb8cF31'; // XAU/USD Chainlink Price Feed contract
 
@@ -77,42 +72,48 @@
 
         async function convertVeinToGold() {
             const amount = document.getElementById("veinAmount").value;
+            const transactionStatus = document.getElementById("status");
+            const errorContainer = document.getElementById("errorContainer");
+
             if (!amount || amount <= 0) {
-                alert("Please enter a valid Vein amount.");
+                handleError("Please enter a valid Vein amount.");
                 return;
             }
 
-            const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-            const userAccount = accounts[0];
-
             try {
-                // Get Vein token balance of the user
+                const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                const userAccount = accounts[0];
                 const balance = await veinToken.methods.balanceOf(userAccount).call();
+
                 if (balance < amount) {
-                    alert("Insufficient Vein balance!");
+                    handleError("Insufficient Vein balance!");
                     return;
                 }
 
-                // Get the latest gold price in USD
                 const goldPrice = await contract.methods.getLatestGoldPrice().call();
-
                 if (goldPrice <= 0) {
-                    alert("Failed to get the gold price.");
+                    handleError("Failed to get the gold price.");
                     return;
                 }
 
-                const transactionStatus = document.getElementById("status");
                 transactionStatus.innerHTML = `Converting ${amount} Vein to the equivalent gold USD value...`;
 
-                // Call the smart contract to convert Vein to Gold
                 await contract.methods.convertVeinToGold(amount).send({ from: userAccount });
 
                 transactionStatus.innerHTML = `Conversion successful! ${amount} Vein tokens have been converted to gold (USD equivalent).`;
 
             } catch (error) {
                 console.error("Error during transaction:", error);
-                alert("An error occurred. Check the console for details.");
+                handleError(error.message);
             }
+        }
+
+        function handleError(errorMessage) {
+            const errorContainer = document.getElementById("errorContainer");
+            errorContainer.innerHTML = `<p style="color: red;">${errorMessage}</p>`;
+            navigator.clipboard.writeText(errorMessage).then(() => {
+                console.log("Error message copied to clipboard!");
+            });
         }
     </script>
 </body>
