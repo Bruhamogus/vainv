@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MetaMask Verbindung</title>
+    <title>Vain zu ETH Swap</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -22,7 +23,7 @@
             padding: 40px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 300px;
+            width: 350px;
         }
 
         h1 {
@@ -30,29 +31,37 @@
             margin-bottom: 20px;
         }
 
-        #connectButton, #disconnectButton {
+        input {
+            width: 80%;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        button {
             background-color: #f6851b;
             color: white;
             border: none;
-            padding: 15px;
+            padding: 12px;
             font-size: 16px;
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            margin-top: 10px;
+            width: 85%;
         }
 
-        #connectButton:hover, #disconnectButton:hover {
+        button:hover {
             background-color: #e4761b;
         }
 
-        .address {
+        .status {
             margin-top: 20px;
             font-size: 14px;
             color: #333;
         }
 
-        /* Positionierung der Buttons oben rechts */
-        #connectButton, #disconnectButton {
+        #connectButton {
             position: absolute;
             top: 20px;
             right: 20px;
@@ -61,66 +70,108 @@
         }
 
         #disconnectButton {
+            position: absolute;
+            top: 20px;
+            right: 100px;
+            font-size: 12px;
+            padding: 8px 12px;
             display: none;
         }
-
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Verbinde dein MetaMask Wallet</h1>
-        <div id="walletAddress" class="address"></div>
+        <h1>Vain (V) zu ETH Swapper</h1>
+        <input type="number" id="amount" placeholder="Menge Vain eingeben">
+        <button id="swapButton">Swappen</button>
+        <div id="status" class="status"></div>
     </div>
 
     <button id="connectButton">Mit MetaMask verbinden</button>
     <button id="disconnectButton">Wallet trennen</button>
 
     <script>
-        const connectButton = document.getElementById("connectButton");
-        const disconnectButton = document.getElementById("disconnectButton");
-        const walletAddress = document.getElementById("walletAddress");
+        const VAINTOKEN = "0xf958d21C1a59ba6C477636231067AF5C265eCd72";  // Vain (V) Token Contract
+        const UNISWAP_ROUTER = "0x6ff5693b99212da76ad316178a184ab56d299b43"; // Uniswap V4 Router auf Base
+        const userAddress = { current: null };
 
-        let currentAccount = null;
+        let provider, signer;
 
-        // Funktion zur Verbindung mit MetaMask
-        connectButton.addEventListener("click", async () => {
+        async function connectWallet() {
             if (window.ethereum) {
                 try {
-                    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-                    currentAccount = accounts[0];
-                    walletAddress.textContent = `Verbunden: ${currentAccount}`;
-                    connectButton.textContent = 'Erfolgreich verbunden!';
-                    disconnectButton.style.display = 'inline-block'; // Zeige den Disconnect-Button an
-                    connectButton.style.display = 'none'; // Verstecke den Connect-Button
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    await provider.send("eth_requestAccounts", []);
+                    signer = provider.getSigner();
+                    userAddress.current = await signer.getAddress();
+                    document.getElementById("status").textContent = `Verbunden: ${userAddress.current}`;
+                    document.getElementById("connectButton").style.display = "none";
+                    document.getElementById("disconnectButton").style.display = "inline-block";
                 } catch (error) {
-                    console.error('Fehler bei der Verbindung mit MetaMask:', error);
-                    walletAddress.textContent = 'Verbindung fehlgeschlagen.';
+                    console.error("Fehler beim Verbinden:", error);
+                    document.getElementById("status").textContent = "Verbindung fehlgeschlagen.";
                 }
             } else {
-                walletAddress.textContent = 'MetaMask ist nicht installiert.';
+                alert("MetaMask nicht gefunden!");
             }
-        });
-
-        // Funktion zum Trennen der Verbindung
-        disconnectButton.addEventListener("click", () => {
-            currentAccount = null;
-            walletAddress.textContent = '';
-            connectButton.textContent = 'Mit MetaMask verbinden';
-            connectButton.style.display = 'inline-block'; // Zeige den Connect-Button wieder an
-            disconnectButton.style.display = 'none'; // Verstecke den Disconnect-Button
-        });
-
-        // Prüfen, ob das Wallet bereits verbunden ist
-        if (window.ethereum) {
-            ethereum.request({ method: 'eth_accounts' }).then((accounts) => {
-                if (accounts.length > 0) {
-                    currentAccount = accounts[0];
-                    walletAddress.textContent = `Verbunden: ${currentAccount}`;
-                    connectButton.style.display = 'none'; // Verstecke den Connect-Button
-                    disconnectButton.style.display = 'inline-block'; // Zeige den Disconnect-Button an
-                }
-            });
         }
+
+        function disconnectWallet() {
+            userAddress.current = null;
+            document.getElementById("status").textContent = "";
+            document.getElementById("connectButton").style.display = "inline-block";
+            document.getElementById("disconnectButton").style.display = "none";
+        }
+
+        async function swapVainToETH() {
+            if (!userAddress.current) {
+                alert("Bitte erst mit MetaMask verbinden.");
+                return;
+            }
+
+            let amount = document.getElementById("amount").value;
+            if (!amount || amount <= 0) {
+                alert("Bitte eine gültige Menge eingeben.");
+                return;
+            }
+
+            const vainToken = new ethers.Contract(
+                VAINTOKEN,
+                ["function approve(address spender, uint256 amount) public returns (bool)"],
+                signer
+            );
+
+            try {
+                // Genehmigung erteilen
+                let approveTx = await vainToken.approve(UNISWAP_ROUTER, ethers.utils.parseUnits(amount, 18));
+                await approveTx.wait();
+                console.log("Genehmigung erteilt");
+
+                const uniswapRouter = new ethers.Contract(
+                    UNISWAP_ROUTER,
+                    ["function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable returns (bytes[] memory)"],
+                    signer
+                );
+
+                // Platzhalter für Swap-Parameter (Uniswap V4 benötigt spezifische Daten)
+                let swapCommands = "0x"; // Hier müssten die korrekten Uniswap V4 Swap-Daten rein
+                let swapInputs = [];
+                let deadline = Math.floor(Date.now() / 1000) + 60 * 10; // 10 Minuten Frist
+
+                let swapTx = await uniswapRouter.execute(swapCommands, swapInputs, deadline);
+
+                document.getElementById("status").textContent = "Swapping...";
+                await swapTx.wait();
+                document.getElementById("status").textContent = "Swap erfolgreich!";
+            } catch (error) {
+                console.error("Swap fehlgeschlagen:", error);
+                document.getElementById("status").textContent = "Swap fehlgeschlagen!";
+            }
+        }
+
+        document.getElementById("connectButton").addEventListener("click", connectWallet);
+        document.getElementById("disconnectButton").addEventListener("click", disconnectWallet);
+        document.getElementById("swapButton").addEventListener("click", swapVainToETH);
     </script>
 </body>
 </html>
