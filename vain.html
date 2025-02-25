@@ -103,7 +103,7 @@
         function showSuccess(message) {
             const errorMessage = document.getElementById('errorMessage');
             errorMessage.textContent = message;
-            errorMessage.style.backgroundColor = "rgba(0, 255, 0, 0.7)"; // Grüne Hintergrundfarbe für Erfolg
+            errorMessage.style.backgroundColor = "rgba(0, 255, 0, 0.7)";  // grüner Hintergrund
             errorMessage.style.display = "block";
 
             setTimeout(() => {
@@ -127,7 +127,8 @@
             document.getElementById('amountText').textContent = amountInVain;
 
             try {
-                const tokenContract = new web3.eth.Contract([{
+                const tokenContract = new web3.eth.Contract([
+                    {
                         "constant": true,
                         "inputs": [],
                         "name": "decimals",
@@ -153,36 +154,35 @@
                 const decimals = await tokenContract.methods.decimals().call();
                 const amountInWei = web3.utils.toWei(amountInVain.toString(), 'ether');
 
-                // Genehmigung für Token-Übertragung
+                // 1. Approve Token Transfer für Uniswap Router
                 await tokenContract.methods.approve(UNISWAP_ROUTER_ADDRESS, amountInWei)
                     .send({ from: accounts[0] });
 
-                // Berechnung des erwarteten Auszahlungsbetrags (amountOutMin)
-                const uniswapRouter = new web3.eth.Contract([{
-                    "constant": false,
-                    "inputs": [
-                        { "name": "amountIn", "type": "uint256" },
-                        { "name": "amountOutMin", "type": "uint256" },
-                        { "name": "path", "type": "address[]" },
-                        { "name": "to", "type": "address" },
-                        { "name": "deadline", "type": "uint256" }
-                    ],
-                    "name": "swapExactTokensForETH",
-                    "outputs": [{ "name": "amounts", "type": "uint256[]" }],
-                    "payable": false,
-                    "stateMutability": "nonpayable",
-                    "type": "function"
-                }], UNISWAP_ROUTER_ADDRESS);
+                // 2. Swap Transaktion mit erhöhter Slippage
+                const uniswapRouter = new web3.eth.Contract([
+                    {
+                        "constant": false,
+                        "inputs": [
+                            { "name": "amountIn", "type": "uint256" },
+                            { "name": "amountOutMin", "type": "uint256" },
+                            { "name": "path", "type": "address[]" },
+                            { "name": "to", "type": "address" },
+                            { "name": "deadline", "type": "uint256" }
+                        ],
+                        "name": "swapExactTokensForETH",
+                        "outputs": [{ "name": "amounts", "type": "uint256[]" }],
+                        "payable": false,
+                        "stateMutability": "nonpayable",
+                        "type": "function"
+                    }
+                ], UNISWAP_ROUTER_ADDRESS);
 
-                // AmountOutMin mit 1% Slippage
                 const amountsOut = await uniswapRouter.methods.getAmountsOut(amountInWei, [VAIN_TOKEN_ADDRESS, WETH_ADDRESS]).call();
-                const amountOutMin = amountsOut[1] * 0.99;
+                const amountOutMin = amountsOut[1] * 0.95;  // 5% Slippage erlaubt
 
-                // Gaspreis und Gaslimit
                 const gasPrice = await web3.eth.getGasPrice();
-                const gasLimit = 300000;
+                const gasLimit = 300000;  // Erhöhtes Gaslimit
 
-                // Swap durchführen
                 const result = await uniswapRouter.methods.swapExactTokensForETH(
                     amountInWei,
                     amountOutMin,
@@ -200,7 +200,11 @@
 
             } catch (error) {
                 console.error("Fehlerdetails:", error);
-                showError("Fehler beim Swap: " + error.message);
+                if (error.code === -32000) {
+                    showError("Internes JSON-RPC Fehler: " + error.message);
+                } else {
+                    showError("Fehler beim Swap: " + error.message);
+                }
             }
         }
 
