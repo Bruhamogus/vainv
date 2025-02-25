@@ -1,232 +1,118 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vain (V) in ETH Umwandeln</title>
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.3/dist/web3.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@uniswap/sdk-core@3.0.0/dist/index.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@uniswap/v3-sdk@3.0.0/dist/index.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.0.0/dist/ethers.umd.min.js"></script>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-
-        input, button {
-            padding: 10px;
-            margin: 10px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            font-size: 16px;
-        }
-
-        input[type="number"] {
-            width: 250px;
-        }
-
-        button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-            width: 150px;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        #error-message {
-            color: red;
-            font-size: 14px;
-            margin-top: 10px;
-            display: none;
-            text-align: center;
-        }
-
-        .popup {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            width: 300px;
-            text-align: center;
-        }
-
-        .popup.success {
-            border-left: 5px solid green;
-        }
-
-        .popup button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .popup button:hover {
-            background-color: #45a049;
-        }
-    </style>
+    <title>Vein to Gold Converter</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dotenv/dist/main.js"></script>
 </head>
 <body>
-    <h1>Vain (V) in ETH Umwandeln</h1>
-    <p>Gib die Menge an Vain (V) Token ein, die du in ETH umwandeln möchtest:</p>
-    <input type="number" id="amountV" placeholder="Menge an Vain (V)">
-    <button onclick="connectWallet()">Mit MetaMask verbinden</button>
-    <button onclick="swapToken()">Token Umwandeln</button>
-    <div id="error-message"></div>
-    
-    <div id="success-popup" class="popup">
-        <p>Der Swap war erfolgreich!</p>
-        <button onclick="closePopup()">Schließen</button>
+    <h1>Vein (V) to Gold Converter</h1>
+
+    <div>
+        <label for="veinAmount">Enter Vein (V) amount to convert: </label>
+        <input type="number" id="veinAmount" placeholder="Amount of Vein" min="1">
     </div>
 
+    <button onclick="convertVeinToGold()">Convert to Gold</button>
+
+    <div id="status"></div>
+
     <script>
-        let web3;
-        let account;
-        let provider;
-        let vTokenAddress = "0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a"; // Vein (V) Token Contract Address
-        let poolAddress = "0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a"; // Uniswap Pool Contract Address
-        let tokenDecimals = 18; // Assuming Vein (V) has 18 decimals, adjust if necessary
-        
-        // Web3 und MetaMask verbinden
-        async function connectWallet() {
-            if (window.ethereum) {
-                provider = new ethers.providers.Web3Provider(window.ethereum);
-                web3 = new Web3(window.ethereum);
-                try {
-                    await ethereum.request({ method: 'eth_requestAccounts' });
-                    const accounts = await web3.eth.getAccounts();
-                    account = accounts[0];
-                    displayError(""); // Fehlernachricht löschen
-                    alert("Wallet verbunden: " + account);
-                } catch (error) {
-                    console.error(error);
-                    displayError("Verbindung fehlgeschlagen. Stelle sicher, dass MetaMask aktiviert ist.");
-                }
-            } else {
-                displayError("MetaMask nicht gefunden. Bitte MetaMask installieren.");
-            }
+        // Load environment variables from .env file
+        require('dotenv').config();
+
+        // Access contract address securely
+        const SMARTCONTRACT = process.env.SMARTCONTRACT;
+
+        // Initialize web3
+        if (typeof window.ethereum !== 'undefined') {
+            var web3 = new Web3(window.ethereum);
+        } else {
+            alert('Please install MetaMask or another web3 provider!');
         }
 
-        // Fehlernachricht anzeigen
-        function displayError(message) {
-            const errorMessageDiv = document.getElementById("error-message");
-            errorMessageDiv.textContent = message;
-            errorMessageDiv.style.display = "block";
-            setTimeout(() => {
-                errorMessageDiv.style.display = "none";
-            }, 20000); // Zeigt die Fehlermeldung für 20 Sekunden an
-        }
+        const veinTokenAddress = '0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a'; // Vein (V) contract
+        const priceFeedAddress = '0x5213eBB69743b85644dbB6E25cdF994aFBb8cF31'; // XAU/USD Chainlink Price Feed contract
 
-        // Token tauschen
-        async function swapToken() {
-            const amountV = document.getElementById("amountV").value;
-            if (!amountV || isNaN(amountV) || amountV <= 0) {
-                displayError("Bitte eine gültige Anzahl an Vain (V) eingeben.");
+        // ABI of the contract (simplified)
+        const contractABI = [
+            {
+                "constant": true,
+                "inputs": [],
+                "name": "getLatestGoldPrice",
+                "outputs": [
+                    { "name": "", "type": "int256" }
+                ],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [{ "name": "veinAmount", "type": "uint256" }],
+                "name": "convertVeinToGold",
+                "outputs": [],
+                "payable": false,
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
+        const veinTokenABI = [
+            {
+                "constant": true,
+                "inputs": [{ "name": "account", "type": "address" }],
+                "name": "balanceOf",
+                "outputs": [{ "name": "", "type": "uint256" }],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        // Create contract instances using SMARTCONTRACT variable
+        const contract = new web3.eth.Contract(contractABI, SMARTCONTRACT);
+        const veinToken = new web3.eth.Contract(veinTokenABI, veinTokenAddress);
+
+        async function convertVeinToGold() {
+            const amount = document.getElementById("veinAmount").value;
+            if (!amount || amount <= 0) {
+                alert("Please enter a valid Vein amount.");
                 return;
             }
-            if (!account) {
-                displayError("Bitte zuerst mit MetaMask verbinden.");
-                return;
-            }
 
-            const tokenAmount = ethers.utils.parseUnits(amountV, tokenDecimals);
-            console.log(`Umwandlung: ${amountV} Vain (V) in ETH`);
+            const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+            const userAccount = accounts[0];
 
-            // Erstelle die Uniswap-Konzepte für den Swap
-            const chainId = 42161; // Base Network Chain ID, wenn du dies benötigst
-            const tokenIn = new Token(chainId, vTokenAddress, tokenDecimals);
-            const tokenOut = WETH[tokenIn.chainId]; // ETH als Ausgabe-Token
-            const amountIn = new CurrencyAmount(tokenIn, tokenAmount.toString());
-            
-            // Hole den Pool und den Route für den Swap
             try {
-                const pool = await Pool.fetchData(tokenIn, tokenOut, 3000); // 3000 ist der Pool-Liquiditätswert (Basis)
-                const route = new Route([pool], tokenIn, tokenOut);
-                
-                // Berechne den minimalen Betrag für den Swap (Slippage beachten)
-                const slippageTolerance = new Percent('50', '10000'); // 0.5% Slippage
-                const trade = new Trade(route, amountIn, TradeType.EXACT_INPUT);
-                const slippageAdjustedAmount = trade.minimumAmountOut(slippageTolerance);
-                
-                // Führe den Swap durch
-                const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 Minuten Ablaufzeit
-                const uniswapRouter = new ethers.Contract(
-                    poolAddress,
-                    [
-                        'function swapExactTokensForTokens(uint256, uint256, address[], address, uint256) public returns (uint[] memory)',
-                    ],
-                    provider.getSigner()
-                );
-
-                // Token-Approval (um den Token für den Swap zu genehmigen)
-                const tokenContract = new ethers.Contract(vTokenAddress, ['function approve(address spender, uint256 amount) public returns (bool)'], provider.getSigner());
-                await tokenContract.approve(poolAddress, tokenAmount);
-
-                // Transaktion initiieren
-                const tx = await uniswapRouter.swapExactTokensForTokens(
-                    tokenAmount,
-                    slippageAdjustedAmount.raw.toString(),
-                    [vTokenAddress, WETH[tokenIn.chainId].address],
-                    account,
-                    deadline
-                );
-
-                // MetaMask öffnet die Transaktionsbestätigung
-                try {
-                    await ethereum.request({
-                        method: 'eth_sendTransaction',
-                        params: [{
-                            from: account,
-                            to: poolAddress,
-                            value: '0x0', // Keine ETH notwendig, da es ein Token-Swap ist
-                            data: tx.data,
-                            gas: '0x200b20' // Angemessene Gasmenge anpassen
-                        }]
-                    });
-
-                    console.log(`Swap erfolgreich, Tx Hash: ${tx.hash}`);
-                    showSuccessPopup();
-                } catch (error) {
-                    console.error("Fehler bei der Transaktion:", error);
-                    displayError("Fehler beim Durchführen des Swaps. Überprüfe die Konsole für Details.");
+                // Get Vein token balance of the user
+                const balance = await veinToken.methods.balanceOf(userAccount).call();
+                if (balance < amount) {
+                    alert("Insufficient Vein balance!");
+                    return;
                 }
+
+                // Get the latest gold price in USD
+                const goldPrice = await contract.methods.getLatestGoldPrice().call();
+
+                if (goldPrice <= 0) {
+                    alert("Failed to get the gold price.");
+                    return;
+                }
+
+                const transactionStatus = document.getElementById("status");
+                transactionStatus.innerHTML = `Converting ${amount} Vein to the equivalent gold USD value...`;
+
+                // Call the smart contract to convert Vein to Gold
+                await contract.methods.convertVeinToGold(amount).send({ from: userAccount });
+
+                transactionStatus.innerHTML = `Conversion successful! ${amount} Vein tokens have been converted to gold (USD equivalent).`;
+
             } catch (error) {
-                console.error("Fehler beim Swap:", error);
-                displayError("Fehler beim Durchführen des Swaps. Bitte versuche es erneut.");
+                console.error("Error during transaction:", error);
+                alert("An error occurred. Check the console for details.");
             }
-        }
-
-        // Erfolgs-Popup anzeigen
-        function showSuccessPopup() {
-            const popup = document.getElementById("success-popup");
-            popup.style.display = "block";
-        }
-
-        // Popup schließen
-        function closePopup() {
-            const popup = document.getElementById("success-popup");
-            popup.style.display = "none";
         }
     </script>
 </body>
