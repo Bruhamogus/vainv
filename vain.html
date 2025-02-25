@@ -59,7 +59,7 @@
     <div id="errorMessage"></div>
 
     <script>
-        const UNISWAP_ROUTER_ADDRESS = "0x1111111254EEB25477B68fb85Ed929f73A960582"; // Uniswap V2 Router auf Base
+        const UNISWAP_ROUTER_ADDRESS = "0x1111111254EEB25477B68fb85Ed929f73A960582"; // Beispiel Uniswap V2 Router Adresse auf Base
         const VAIN_TOKEN_ADDRESS = "0xf958d21C1a59ba6C477636231067AF5C265eCd72";
         const WETH_ADDRESS = "0x4200000000000000000000000000000000000006"; // WETH (Wrapped ETH) auf Base
 
@@ -173,6 +173,18 @@
                         "outputs": [{ "name": "amounts", "type": "uint256[]" }],
                         "payable": false,
                         "stateMutability": "nonpayable",
+                        "type": "function"
+                    },
+                    {
+                        "constant": true,
+                        "inputs": [
+                            { "name": "amountIn", "type": "uint256" },
+                            { "name": "path", "type": "address[]" }
+                        ],
+                        "name": "getAmountsOut",
+                        "outputs": [{ "name": "", "type": "uint256[]" }],
+                        "payable": false,
+                        "stateMutability": "view",
                         "type": "function"
                     }
                 ], UNISWAP_ROUTER_ADDRESS);
