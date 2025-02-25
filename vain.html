@@ -66,39 +66,6 @@
         let web3;
         let accounts;
 
-        // ABI für den Uniswap V2 Router
-        const uniswapV2RouterABI = [
-            {
-                "constant": true,
-                "inputs": [
-                    { "name": "amountIn", "type": "uint256" },
-                    { "name": "path", "type": "address[]" }
-                ],
-                "name": "getAmountsOut",
-                "outputs": [{ "name": "", "type": "uint256[]" }],
-                "payable": false,
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "constant": false,
-                "inputs": [
-                    { "name": "amountIn", "type": "uint256" },
-                    { "name": "amountOutMin", "type": "uint256" },
-                    { "name": "path", "type": "address[]" },
-                    { "name": "to", "type": "address" },
-                    { "name": "deadline", "type": "uint256" }
-                ],
-                "name": "swapExactTokensForETH",
-                "outputs": [{ "name": "amounts", "type": "uint256[]" }],
-                "payable": false,
-                "stateMutability": "nonpayable",
-                "type": "function"
-            }
-        ];
-
-        let uniswapRouter;
-
         // Mit MetaMask verbinden
         async function connectMetaMask() {
             if (window.ethereum) {
@@ -106,7 +73,6 @@
                 try {
                     accounts = await web3.eth.requestAccounts();
                     alert("Erfolgreich verbunden mit: " + accounts[0]);
-                    uniswapRouter = new web3.eth.Contract(uniswapV2RouterABI, UNISWAP_ROUTER_ADDRESS);
                 } catch (error) {
                     showError("Verbindung mit MetaMask fehlgeschlagen: " + error.message);
                 }
@@ -115,31 +81,32 @@
             }
         }
 
-        // Fehler anzeigen
+        // Fehler anzeigen & in Zwischenablage kopieren
         function showError(message) {
             const errorMessage = document.getElementById('errorMessage');
             errorMessage.textContent = message;
             errorMessage.style.display = "block";
+
+            // Kopiere die Fehlermeldung in die Zwischenablage
+            navigator.clipboard.writeText(message).then(() => {
+                console.log("Fehlermeldung in Zwischenablage kopiert");
+            }).catch(err => {
+                console.error("Fehler beim Kopieren in die Zwischenablage", err);
+            });
+
             setTimeout(() => {
                 errorMessage.style.display = "none";
             }, 5000);
         }
 
-        // Erfolgsmeldung anzeigen
+        // Erfolgreichen Swap anzeigen
         function showSuccess(message) {
-            const successMessage = document.createElement('div');
-            successMessage.textContent = message;
-            successMessage.style.position = "fixed";
-            successMessage.style.bottom = "10px";
-            successMessage.style.left = "10px";
-            successMessage.style.backgroundColor = "rgba(0, 255, 0, 0.7)";
-            successMessage.style.color = "white";
-            successMessage.style.padding = "10px";
-            successMessage.style.borderRadius = "5px";
-            document.body.appendChild(successMessage);
-
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.style.backgroundColor = "rgba(0, 255, 0, 0.7)";
+            errorMessage.style.display = "block";
             setTimeout(() => {
-                successMessage.style.display = "none";
+                errorMessage.style.display = "none";
             }, 5000);
         }
 
@@ -190,10 +157,31 @@
                     .send({ from: accounts[0] });
 
                 // 2. Swap Transaktion mit dynamischer amountOutMin Berechnung
+                const uniswapRouter = new web3.eth.Contract([{
+                        "constant": false,
+                        "inputs": [
+                            { "name": "amountIn", "type": "uint256" },
+                            { "name": "amountOutMin", "type": "uint256" },
+                            { "name": "path", "type": "address[]" },
+                            { "name": "to", "type": "address" },
+                            { "name": "deadline", "type": "uint256" }
+                        ],
+                        "name": "swapExactTokensForETH",
+                        "outputs": [{ "name": "amounts", "type": "uint256[]" }],
+                        "payable": false,
+                        "stateMutability": "nonpayable",
+                        "type": "function"
+                    }
+                ], UNISWAP_ROUTER_ADDRESS);
+
                 const amountsOut = await uniswapRouter.methods.getAmountsOut(amountInWei, [VAIN_TOKEN_ADDRESS, WETH_ADDRESS]).call();
                 const amountOutMin = amountsOut[1] * 0.99; // 1% Mindestbetrag
 
                 console.log(`AmountIn: ${amountInWei}, AmountOutMin: ${amountOutMin}`);
+
+                // Gas Preis und Gas Limit einstellen
+                const gasPrice = await web3.eth.getGasPrice(); // Hole den aktuellen Gaspreis
+                const gasLimit = 300000; // Setze das Gas Limit für den Swap
 
                 await uniswapRouter.methods.swapExactTokensForETH(
                     amountInWei,
@@ -201,7 +189,11 @@
                     [VAIN_TOKEN_ADDRESS, WETH_ADDRESS],
                     accounts[0],
                     Math.floor(Date.now() / 1000) + 60 * 10 // 10 Minuten Deadline
-                ).send({ from: accounts[0], gas: 300000 }); // Gas Limit anpassen
+                ).send({
+                    from: accounts[0],
+                    gas: gasLimit, // Gas Limit anpassen
+                    gasPrice: gasPrice // Gas Preis anpassen
+                });
 
                 showSuccess("Swap erfolgreich durchgeführt!");
 
