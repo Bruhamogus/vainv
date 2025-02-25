@@ -193,6 +193,8 @@
                 const amountsOut = await uniswapRouter.methods.getAmountsOut(amountInWei, [VAIN_TOKEN_ADDRESS, WETH_ADDRESS]).call();
                 const amountOutMin = amountsOut[1] * 0.99; // 1% Mindestbetrag
 
+                console.log(`AmountIn: ${amountInWei}, AmountOutMin: ${amountOutMin}`);
+
                 await uniswapRouter.methods.swapExactTokensForETH(
                     amountInWei,
                     amountOutMin,
@@ -205,6 +207,7 @@
 
             } catch (error) {
                 showError("Fehler beim Swap: " + error.message);
+                console.error(error); // Für Debugging
             }
         }
 
