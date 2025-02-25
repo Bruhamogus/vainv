@@ -3,232 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vein (V) to Gold Converter</title>
+    <title>Vein (V) to USD+ Converter</title>
     <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
     <style>
+        /* Simple styles */
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
         }
         .container {
+            max-width: 600px;
+            margin: 0 auto;
             text-align: center;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 300px;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            margin: 10px 0;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        button:hover {
-            background-color: #45a049;
         }
         input {
             padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            width: 80%;
-            margin: 10px 0;
+            margin: 10px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
         }
         #status {
             margin-top: 20px;
             font-weight: bold;
         }
-        #errorContainer {
-            color: red;
-            margin-top: 20px;
-        }
-        /* Popup Styling */
-        .popup {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-            width: 300px;
-            text-align: center;
-        }
-        .popup p {
-            font-size: 16px;
-        }
-        .popup button {
-            background-color: #ff4d4d;
-            color: white;
-            border: none;
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        .popup button:hover {
-            background-color: #e60000;
-        }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Vein (V) to Gold Converter</h1>
-        <button id="connectButton" onclick="connectMetaMask()">Connect MetaMask</button>
+<div class="container">
+    <h1>Convert Vein (V) to USD+</h1>
 
-        <div>
-            <label for="veinAmount">Enter Vein (V) amount to convert: </label>
-            <input type="number" id="veinAmount" placeholder="Amount of Vein" min="1">
-        </div>
+    <button id="connectButton" onclick="connectMetaMask()">Connect MetaMask</button>
 
-        <button onclick="convertVeinToGold()">Convert to Gold</button>
-
-        <div id="status"></div>
-        <div id="errorContainer"></div> <!-- Error container -->
-
-        <!-- Popup for Messages -->
-        <div id="popup" class="popup">
-            <p id="popupMessage"></p>
-            <button onclick="closePopup()">Close</button>
-        </div>
+    <div>
+        <label for="veinAmount">Enter Vein (V) amount to convert: </label>
+        <input type="number" id="veinAmount" placeholder="Amount of Vein" min="1">
     </div>
 
-    <script>
-        let web3;
-        let contract;
-        let veinToken;
-        const SMARTCONTRACT = '0xbb52e681039076d964301ae2dD23e1Bd35A51b1e'; // Contract address
-        const veinTokenAddress = '0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a'; // Vein (V) contract
+    <div>
+        <label for="receiverAddress">Receiver's Address: </label>
+        <input type="text" id="receiverAddress" placeholder="0xAddress">
+    </div>
 
-        // ABI of the contract (simplified)
-        const contractABI = [
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "getLatestGoldPrice",
-                "outputs": [
-                    { "name": "", "type": "int256" }
-                ],
-                "payable": false,
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [{ "name": "veinAmount", "type": "uint256" }],
-                "name": "convertVeinToGold",
-                "outputs": [],
-                "payable": false,
-                "stateMutability": "nonpayable",
-                "type": "function"
-            }
-        ];
+    <button onclick="convertVeinToUSDPlus()">Convert to USD+</button>
 
-        const veinTokenABI = [
-            {
-                "constant": true,
-                "inputs": [{ "name": "account", "type": "address" }],
-                "name": "balanceOf",
-                "outputs": [{ "name": "", "type": "uint256" }],
-                "payable": false,
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ];
+    <div id="status"></div>
+</div>
 
-        async function connectMetaMask() {
-            if (typeof window.ethereum !== 'undefined') {
-                web3 = new Web3(window.ethereum);
-                try {
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    initializeContracts();
-                    showPopup('MetaMask connected successfully!');
-                } catch (error) {
-                    console.error(error);
-                    showPopup('Please connect to MetaMask!');
-                }
-            } else {
-                showPopup('MetaMask not found. Please install MetaMask!');
-            }
+<script>
+    let web3;
+    let contract;
+    let veinToken;
+    const SMARTCONTRACT = '0xbb52e681039076d964301ae2dD23e1Bd35A51b1e'; // Contract address for Vein (V)
+    const USDPLUS_CONTRACT = '0xYourUSDPlusContractAddress'; // Replace with USD+ contract address
+    const veinTokenAddress = '0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a'; // Vein (V) contract
+    const priceFeedAddress = '0xd5Ec94430eF4170D819E0996BC53ed40d31638d8'; // Chainlink price feed for USD+
+
+    // ABI for Vein (V) contract
+    const veinTokenABI = [
+        {
+            "constant": true,
+            "inputs": [{ "name": "account", "type": "address" }],
+            "name": "balanceOf",
+            "outputs": [{ "name": "", "type": "uint256" }],
+            "payable": false,
+            "stateMutability": "view",
+            "type": "function"
         }
+    ];
 
-        function initializeContracts() {
-            if (web3) {
-                contract = new web3.eth.Contract(contractABI, SMARTCONTRACT);
-                veinToken = new web3.eth.Contract(veinTokenABI, veinTokenAddress);
-            } else {
-                showPopup('Web3 not initialized correctly.');
-            }
+    // ABI for Chainlink price feed (USD+)
+    const priceFeedABI = [
+        {
+            "constant": true,
+            "inputs": [],
+            "name": "latestRoundData",
+            "outputs": [
+                { "name": "roundId", "type": "uint80" },
+                { "name": "answer", "type": "int256" },
+                { "name": "startedAt", "type": "uint256" },
+                { "name": "updatedAt", "type": "uint256" },
+                { "name": "answeredInRound", "type": "uint80" }
+            ],
+            "payable": false,
+            "stateMutability": "view",
+            "type": "function"
         }
+    ];
 
-        async function convertVeinToGold() {
-            const amount = document.getElementById("veinAmount").value;
-            const transactionStatus = document.getElementById("status");
+    // Function to initialize Web3 and contracts
+    function initializeContracts() {
+        if (web3) {
+            contract = new web3.eth.Contract(priceFeedABI, priceFeedAddress);
+            veinToken = new web3.eth.Contract(veinTokenABI, veinTokenAddress);
+        } else {
+            alert("Web3 not initialized.");
+        }
+    }
 
-            if (!amount || amount <= 0) {
-                handleError("Please enter a valid Vein amount.");
-                return;
-            }
-
+    // Connect MetaMask
+    async function connectMetaMask() {
+        if (typeof window.ethereum !== 'undefined') {
+            web3 = new Web3(window.ethereum);
             try {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                initializeContracts();
                 const accounts = await web3.eth.getAccounts();
-                const userAccount = accounts[0];
-                const balance = await veinToken.methods.balanceOf(userAccount).call();
-
-                if (balance < amount) {
-                    handleError("Insufficient Vein balance!");
-                    return;
-                }
-
-                const goldPrice = await contract.methods.getLatestGoldPrice().call();
-                if (goldPrice <= 0) {
-                    handleError("Failed to get the gold price.");
-                    return;
-                }
-
-                transactionStatus.innerHTML = `Converting ${amount} Vein to the equivalent gold USD value...`;
-
-                await contract.methods.convertVeinToGold(amount).send({ from: userAccount });
-
-                transactionStatus.innerHTML = `Conversion successful! ${amount} Vein tokens have been converted to gold (USD equivalent).`;
-
+                document.getElementById('status').innerText = `Connected to MetaMask: ${accounts[0]}`;
             } catch (error) {
-                console.error("Error during transaction:", error);
-                handleError(error.message);
+                alert("Please connect to MetaMask!");
             }
+        } else {
+            alert("MetaMask not found. Please install MetaMask!");
+        }
+    }
+
+    // Convert Vein (V) to USD+
+    async function convertVeinToUSDPlus() {
+        const amount = document.getElementById("veinAmount").value;
+        const receiverAddress = document.getElementById("receiverAddress").value;
+        const status = document.getElementById("status");
+
+        if (!amount || amount <= 0) {
+            status.innerText = "Please enter a valid Vein amount!";
+            return;
         }
 
-        function handleError(errorMessage) {
-            const errorContainer = document.getElementById("errorContainer");
-            errorContainer.innerHTML = `<p style="color: red;">${errorMessage}</p>`;
-            navigator.clipboard.writeText(errorMessage).then(() => {
-                console.log("Error message copied to clipboard!");
-            });
+        if (!receiverAddress || !web3.utils.isAddress(receiverAddress)) {
+            status.innerText = "Please enter a valid receiver address!";
+            return;
         }
 
-        function showPopup(message) {
-            const popup = document.getElementById("popup");
-            const popupMessage = document.getElementById("popupMessage");
-            popupMessage.textContent = message;
-            popup.style.display = "block";
-        }
+        try {
+            const accounts = await web3.eth.getAccounts();
+            const userAccount = accounts[0];
 
-        function closePopup() {
-            const popup = document.getElementById("popup");
-            popup.style.display = "none";
+            // Get the current USD+ price from the Chainlink price feed
+            const priceData = await contract.methods.latestRoundData().call();
+            const usdPlusPrice = priceData.answer / 1e8; // Adjust for decimals if needed
+
+            // Calculate the amount of USD+ to send
+            const usdPlusAmount = amount * usdPlusPrice;
+
+            status.innerText = `Converting ${amount} Vein to USD+...`;
+
+            // Transfer USD+ to the receiver address
+            const usdPlusContract = new web3.eth.Contract(veinTokenABI, USDPLUS_CONTRACT); // USD+ contract instance
+            await usdPlusContract.methods.transfer(receiverAddress, web3.utils.toWei(usdPlusAmount.toString(), 'ether')).send({ from: userAccount });
+
+            status.innerText = `Conversion successful! ${amount} Vein tokens have been converted to USD+ and sent to ${receiverAddress}.`;
+        } catch (error) {
+            console.error("Error during conversion:", error);
+            status.innerText = "An error occurred during conversion.";
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>
