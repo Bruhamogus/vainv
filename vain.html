@@ -81,19 +81,11 @@
             }
         }
 
-        // Fehler anzeigen & in Zwischenablage kopieren
+        // Fehler anzeigen
         function showError(message) {
             const errorMessage = document.getElementById('errorMessage');
             errorMessage.textContent = message;
             errorMessage.style.display = "block";
-
-            // Kopiere die Fehlermeldung in die Zwischenablage
-            navigator.clipboard.writeText(message).then(() => {
-                console.log("Fehlermeldung in Zwischenablage kopiert");
-            }).catch(err => {
-                console.error("Fehler beim Kopieren in die Zwischenablage", err);
-            });
-
             setTimeout(() => {
                 errorMessage.style.display = "none";
             }, 5000);
@@ -163,7 +155,7 @@
                 await tokenContract.methods.approve(UNISWAP_ROUTER_ADDRESS, amountInWei)
                     .send({ from: accounts[0] });
 
-                // 2. Swap Transaktion
+                // 2. Swap Transaktion mit dynamischer amountOutMin Berechnung
                 const uniswapRouter = new web3.eth.Contract([{
                         "constant": false,
                         "inputs": [
@@ -181,15 +173,17 @@
                     }
                 ], UNISWAP_ROUTER_ADDRESS);
 
-                const amountOutMin = 1; // Mindestbetrag für den Rücktausch, z.B. 1 Wei
+                // Dynamisch den Betrag berechnen
+                const amountsOut = await uniswapRouter.methods.getAmountsOut(amountInWei, [VAIN_TOKEN_ADDRESS, WETH_ADDRESS]).call();
+                const amountOutMin = amountsOut[1] * 0.99; // 1% Mindestbetrag
 
                 await uniswapRouter.methods.swapExactTokensForETH(
                     amountInWei,
-                    amountOutMin, // Setze eine realistische minimale Rückgabe
-                    [VAIN_TOKEN_ADDRESS, WETH_ADDRESS], // Swap-Pfad
+                    amountOutMin,
+                    [VAIN_TOKEN_ADDRESS, WETH_ADDRESS],
                     accounts[0],
                     Math.floor(Date.now() / 1000) + 60 * 10 // 10 Minuten Deadline
-                ).send({ from: accounts[0], gas: 300000 }); // Stelle sicher, dass genügend Gas zugewiesen wird
+                ).send({ from: accounts[0], gas: 300000 }); // Gas Limit anpassen
 
                 showSuccess("Swap erfolgreich durchgeführt!");
 
