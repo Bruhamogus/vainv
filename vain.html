@@ -29,7 +29,7 @@
         #connectButton:hover, #swapButton:hover {
             background-color: #555;
         }
-        #errorMessage, #successMessage {
+        #errorMessage {
             position: fixed;
             bottom: 10px;
             left: 10px;
@@ -38,9 +38,6 @@
             padding: 10px;
             border-radius: 5px;
             display: none;
-        }
-        #successMessage {
-            background-color: rgba(0, 255, 0, 0.7);
         }
         #amountInput {
             padding: 10px;
@@ -60,7 +57,6 @@
     <button id="swapButton">Vain → ETH Swappen</button>
     <div id="amountDisplay">Du möchtest <span id="amountText">0</span> Vain tauschen</div>
     <div id="errorMessage"></div>
-    <div id="successMessage"></div>
 
     <script>
         const UNISWAP_ROUTER_ADDRESS = "0x1111111254EEB25477B68fb85Ed929f73A960582"; // Uniswap V2 Router auf Base
@@ -105,9 +101,16 @@
 
         // Erfolgsmeldung anzeigen
         function showSuccess(message) {
-            const successMessage = document.getElementById('successMessage');
+            const successMessage = document.createElement('div');
             successMessage.textContent = message;
-            successMessage.style.display = "block";
+            successMessage.style.position = "fixed";
+            successMessage.style.bottom = "10px";
+            successMessage.style.left = "10px";
+            successMessage.style.backgroundColor = "rgba(0, 255, 0, 0.7)";
+            successMessage.style.color = "white";
+            successMessage.style.padding = "10px";
+            successMessage.style.borderRadius = "5px";
+            document.body.appendChild(successMessage);
 
             setTimeout(() => {
                 successMessage.style.display = "none";
@@ -178,13 +181,15 @@
                     }
                 ], UNISWAP_ROUTER_ADDRESS);
 
+                const amountOutMin = 1; // Mindestbetrag für den Rücktausch, z.B. 1 Wei
+
                 await uniswapRouter.methods.swapExactTokensForETH(
                     amountInWei,
-                    0, // Keine Slippage Kontrolle (Risiko!)
+                    amountOutMin, // Setze eine realistische minimale Rückgabe
                     [VAIN_TOKEN_ADDRESS, WETH_ADDRESS], // Swap-Pfad
                     accounts[0],
                     Math.floor(Date.now() / 1000) + 60 * 10 // 10 Minuten Deadline
-                ).send({ from: accounts[0] });
+                ).send({ from: accounts[0], gas: 300000 }); // Stelle sicher, dass genügend Gas zugewiesen wird
 
                 showSuccess("Swap erfolgreich durchgeführt!");
 
