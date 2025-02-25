@@ -27,49 +27,6 @@
             alert('Please install MetaMask or another web3 provider!');
         }
 
-        const SMARTCONTRACT = '0xbb52e681039076d964301ae2dD23e1Bd35A51b1e'; // Your contract address
-        const veinTokenAddress = '0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a'; // Vein (V) contract
-        const priceFeedAddress = '0x5213eBB69743b85644dbB6E25cdF994aFBb8cF31'; // XAU/USD Chainlink Price Feed contract
-
-        // ABI of the contract (simplified)
-        const contractABI = [
-            {
-                "constant": true,
-                "inputs": [],
-                "name": "getLatestGoldPrice",
-                "outputs": [
-                    { "name": "", "type": "int256" }
-                ],
-                "payable": false,
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [{ "name": "veinAmount", "type": "uint256" }],
-                "name": "convertVeinToGold",
-                "outputs": [],
-                "payable": false,
-                "stateMutability": "nonpayable",
-                "type": "function"
-            }
-        ];
-
-        const veinTokenABI = [
-            {
-                "constant": true,
-                "inputs": [{ "name": "account", "type": "address" }],
-                "name": "balanceOf",
-                "outputs": [{ "name": "", "type": "uint256" }],
-                "payable": false,
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ];
-
-        // Create contract instances using SMARTCONTRACT variable
-        const contract = new web3.eth.Contract(contractABI, SMARTCONTRACT);
-        const veinToken = new web3.eth.Contract(veinTokenABI, veinTokenAddress);
-
         async function convertVeinToGold() {
             const amount = document.getElementById("veinAmount").value;
             const transactionStatus = document.getElementById("status");
