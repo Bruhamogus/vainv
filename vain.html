@@ -5,26 +5,133 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vein (V) to Gold Converter</title>
     <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 300px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px 0;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 80%;
+            margin: 10px 0;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #errorContainer {
+            color: red;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Vein (V) to Gold Converter</h1>
 
-    <div>
-        <label for="veinAmount">Enter Vein (V) amount to convert: </label>
-        <input type="number" id="veinAmount" placeholder="Amount of Vein" min="1">
+    <div class="container">
+        <h1>Vein (V) to Gold Converter</h1>
+        <button id="connectButton" onclick="connectMetaMask()">Connect MetaMask</button>
+
+        <div>
+            <label for="veinAmount">Enter Vein (V) amount to convert: </label>
+            <input type="number" id="veinAmount" placeholder="Amount of Vein" min="1">
+        </div>
+
+        <button onclick="convertVeinToGold()">Convert to Gold</button>
+
+        <div id="status"></div>
+        <div id="errorContainer"></div> <!-- Error container -->
     </div>
 
-    <button onclick="convertVeinToGold()">Convert to Gold</button>
-
-    <div id="status"></div>
-    <div id="errorContainer"></div> <!-- Error container -->
-
     <script>
-        // Initialize Web3
-        if (typeof window.ethereum !== 'undefined') {
-            var web3 = new Web3(window.ethereum);
-        } else {
-            alert('Please install MetaMask or another web3 provider!');
+        let web3;
+        let contract;
+        let veinToken;
+        const SMARTCONTRACT = '0xbb52e681039076d964301ae2dD23e1Bd35A51b1e'; // Contract address
+        const veinTokenAddress = '0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a'; // Vein (V) contract
+
+        // ABI of the contract (simplified)
+        const contractABI = [
+            {
+                "constant": true,
+                "inputs": [],
+                "name": "getLatestGoldPrice",
+                "outputs": [
+                    { "name": "", "type": "int256" }
+                ],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [{ "name": "veinAmount", "type": "uint256" }],
+                "name": "convertVeinToGold",
+                "outputs": [],
+                "payable": false,
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
+        const veinTokenABI = [
+            {
+                "constant": true,
+                "inputs": [{ "name": "account", "type": "address" }],
+                "name": "balanceOf",
+                "outputs": [{ "name": "", "type": "uint256" }],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        async function connectMetaMask() {
+            if (typeof window.ethereum !== 'undefined') {
+                web3 = new Web3(window.ethereum);
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    alert('MetaMask connected!');
+                    initializeContracts();
+                } catch (error) {
+                    console.error(error);
+                    alert('Please connect to MetaMask!');
+                }
+            } else {
+                alert('MetaMask not found. Please install MetaMask!');
+            }
+        }
+
+        function initializeContracts() {
+            contract = new web3.eth.Contract(contractABI, SMARTCONTRACT);
+            veinToken = new web3.eth.Contract(veinTokenABI, veinTokenAddress);
         }
 
         async function convertVeinToGold() {
@@ -38,7 +145,7 @@
             }
 
             try {
-                const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                const accounts = await web3.eth.getAccounts();
                 const userAccount = accounts[0];
                 const balance = await veinToken.methods.balanceOf(userAccount).call();
 
