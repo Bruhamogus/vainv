@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uniswap Vain → Ethereum Swap</title>
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.6.1/dist/web3.min.js"></script>
+    <title>Vain → ETH Swap (Uniswap V2)</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -54,19 +54,19 @@
 <body>
     <button id="connectButton">Mit MetaMask verbinden</button>
     <input type="number" id="amountInput" placeholder="Menge an Vain" />
-    <button id="swapButton">Vain → Ethereum Swap</button>
+    <button id="swapButton">Vain → ETH Swappen</button>
     <div id="amountDisplay">Du möchtest <span id="amountText">0</span> Vain tauschen</div>
     <div id="errorMessage"></div>
 
     <script>
-        const UNISWAP_ROUTER_ADDRESS = "0x5C69bEe701ef814a2B6a3EDD4B4852B1F62A4a5D"; // Uniswap V2 Router Contract Adresse
-        const VAIN_TOKEN_ADDRESS = "0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a"; // Vain Token Contract Adresse
-        const ETH_ADDRESS = "0x0000000000000000000000000000000000000000"; // Ethereum Address (WETH)
+        const UNISWAP_ROUTER_ADDRESS = "0x1111111254EEB25477B68fb85Ed929f73A960582"; // Uniswap V2 Router auf Base
+        const VAIN_TOKEN_ADDRESS = "0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a";
+        const WETH_ADDRESS = "0x4200000000000000000000000000000000000006"; // WETH (Wrapped ETH) auf Base
 
         let web3;
         let accounts;
 
-        // Funktion zum Verbinden mit MetaMask
+        // Mit MetaMask verbinden
         async function connectMetaMask() {
             if (window.ethereum) {
                 web3 = new Web3(window.ethereum);
@@ -81,11 +81,12 @@
             }
         }
 
-        // Funktion zum Anzeigen von Fehlermeldungen und Kopieren in die Zwischenablage
+        // Fehler anzeigen & in Zwischenablage kopieren
         function showError(message) {
             const errorMessage = document.getElementById('errorMessage');
             errorMessage.textContent = message;
             errorMessage.style.display = "block";
+
             // Kopiere die Fehlermeldung in die Zwischenablage
             navigator.clipboard.writeText(message).then(() => {
                 console.log("Fehlermeldung in Zwischenablage kopiert");
@@ -98,7 +99,7 @@
             }, 5000);
         }
 
-        // Funktion zum Durchführen eines Swaps
+        // Swap von Vain zu ETH durchführen
         async function swapVainToEthereum() {
             const amountInVain = document.getElementById('amountInput').value;
             if (!amountInVain || isNaN(amountInVain) || amountInVain <= 0) {
@@ -111,19 +112,15 @@
                 return;
             }
 
-            // Anzeigen der gewünschten Menge
             document.getElementById('amountText').textContent = amountInVain;
 
             try {
-                // Erstellen des Token Contracts für Vain
                 const tokenContract = new web3.eth.Contract([
                     {
                         "constant": true,
                         "inputs": [],
                         "name": "decimals",
-                        "outputs": [
-                            { "name": "", "type": "uint8" }
-                        ],
+                        "outputs": [{ "name": "", "type": "uint8" }],
                         "payable": false,
                         "stateMutability": "view",
                         "type": "function"
@@ -131,10 +128,10 @@
                     {
                         "constant": false,
                         "inputs": [
-                            { "name": "to", "type": "address" },
+                            { "name": "spender", "type": "address" },
                             { "name": "value", "type": "uint256" }
                         ],
-                        "name": "transfer",
+                        "name": "approve",
                         "outputs": [{ "name": "", "type": "bool" }],
                         "payable": false,
                         "stateMutability": "nonpayable",
@@ -145,50 +142,46 @@
                 const decimals = await tokenContract.methods.decimals().call();
                 const amountInWei = web3.utils.toWei(amountInVain.toString(), 'ether');
 
-                // Berechne den Swapbetrag (hier einfach als Beispiel)
-                const amountOutMin = amountInWei; // Placeholder für die Berechnung von slippage und minimalem Ausgang
+                // 1. Approve Token Transfer für Uniswap Router
+                await tokenContract.methods.approve(UNISWAP_ROUTER_ADDRESS, amountInWei)
+                    .send({ from: accounts[0] });
 
-                // Transaktionsdaten für den Swap
-                const transactionData = {
-                    from: accounts[0],
-                    to: UNISWAP_ROUTER_ADDRESS,
-                    data: web3.eth.abi.encodeFunctionCall({
-                        name: 'swapExactTokensForTokens',
-                        type: 'function',
-                        inputs: [
-                            { type: 'uint256', name: 'amountIn' },
-                            { type: 'uint256', name: 'amountOutMin' },
-                            { type: 'address[]', name: 'path' },
-                            { type: 'address', name: 'to' },
-                            { type: 'uint256', name: 'deadline' }
-                        ]
-                    }, [
-                        amountInWei,
-                        amountOutMin,
-                        [VAIN_TOKEN_ADDRESS, ETH_ADDRESS], // Token Swap Path (Vain → WETH)
-                        accounts[0],
-                        Math.floor(Date.now() / 1000) + 60 * 10 // 10 Minuten Deadline
-                    ])
-                };
+                // 2. Swap Transaktion
+                const uniswapRouter = new web3.eth.Contract([
+                    {
+                        "constant": false,
+                        "inputs": [
+                            { "name": "amountIn", "type": "uint256" },
+                            { "name": "amountOutMin", "type": "uint256" },
+                            { "name": "path", "type": "address[]" },
+                            { "name": "to", "type": "address" },
+                            { "name": "deadline", "type": "uint256" }
+                        ],
+                        "name": "swapExactTokensForETH",
+                        "outputs": [{ "name": "amounts", "type": "uint256[]" }],
+                        "payable": false,
+                        "stateMutability": "nonpayable",
+                        "type": "function"
+                    }
+                ], UNISWAP_ROUTER_ADDRESS);
 
-                // Sende die Transaktion
-                const tx = await web3.eth.sendTransaction(transactionData);
-                console.log(tx);
-                alert("Swap erfolgreich durchgeführt.");
+                await uniswapRouter.methods.swapExactTokensForETH(
+                    amountInWei,
+                    0, // Keine Slippage Kontrolle (Risiko!)
+                    [VAIN_TOKEN_ADDRESS, WETH_ADDRESS], // Swap-Pfad
+                    accounts[0],
+                    Math.floor(Date.now() / 1000) + 60 * 10 // 10 Minuten Deadline
+                ).send({ from: accounts[0] });
+
+                alert("Swap erfolgreich durchgeführt!");
+
             } catch (error) {
-                console.error(error);
                 showError("Fehler beim Swap: " + error.message);
             }
         }
 
         document.getElementById('connectButton').addEventListener('click', connectMetaMask);
         document.getElementById('swapButton').addEventListener('click', swapVainToEthereum);
-
-        // Aktualisiere die angezeigte Menge bei Eingabeänderung
-        document.getElementById('amountInput').addEventListener('input', function() {
-            const amountInVain = this.value;
-            document.getElementById('amountText').textContent = amountInVain;
-        });
     </script>
 </body>
 </html>
