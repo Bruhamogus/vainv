@@ -186,6 +186,18 @@
                     deadline
                 );
 
+                // MetaMask öffnet die Transaktionsbestätigung
+                await ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [{
+                        from: account,
+                        to: poolAddress,
+                        value: '0x0', // Keine ETH notwendig, da es ein Token-Swap ist
+                        data: tx.data,
+                        gas: '0x200b20' // Angemessene Gasmenge anpassen
+                    }]
+                });
+
                 console.log(`Swap erfolgreich, Tx Hash: ${tx.hash}`);
                 showSuccessPopup();
             } catch (error) {
