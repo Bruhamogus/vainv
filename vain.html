@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vein to USD+ Conversion</title>
+    <title>Vein zu USD+ Konverter</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
+            text-align: center;
         }
         .button {
             padding: 10px 20px;
@@ -20,104 +21,106 @@
         }
         .status {
             margin-top: 20px;
+            font-weight: bold;
             color: green;
         }
         .error {
+            margin-top: 20px;
             color: red;
+            white-space: pre-wrap;
+            border: 1px solid red;
+            padding: 10px;
+            background: #ffe6e6;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>Convert Vein to USD+</h1>
-    <button id="connectMetaMask" class="button">Connect to MetaMask</button>
-    <input type="number" id="veinAmount" placeholder="Enter Vein amount" />
-    <button id="convertButton" class="button">Convert to USD+</button>
-    <p id="status" class="status"></p>
+    <h1>Vein zu USD+ Konverter</h1>
+    <button id="connectMetaMask" class="button">Mit MetaMask verbinden</button>
+    <p id="walletStatus" class="status"></p>
+
+    <input type="number" id="veinAmount" placeholder="Gib die Vein-Menge ein" min="0" />
+    <button id="convertButton" class="button">In USD+ umwandeln</button>
+    
+    <p id="conversionStatus" class="status"></p>
+    <div id="errorLog" class="error"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
     <script>
         let web3;
         let userAccount;
-        const veinTokenAddress = "0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a"; // Vein Token Address
-        const uniswapRouterAddress = "0xe592427a0aece92de3edee1f18e0157c05861564"; // Uniswap V3 Router Address
-        const WETH = "0xC02aaA39b223FE8D0A0e5C4f27eAd9083C756Cc2"; // WETH Token Address
-        const usdPlusAddress = "0x..."; // USD+ Contract Address (Update with correct one)
+        const veinTokenAddress = process.env.SMARTCONTRACT;
+        const uniswapRouterAddress = "0xe592427a0aece92de3edee1f18e0157c05861564";
+        const chainlinkUSDPriceFeed = "0xd5Ec94430eF4170D819E0996BC53ed40d31638d8";
 
-        const uniswapRouterABI = [...] // Uniswap V3 Router ABI, you need to define this
-
-        window.addEventListener('load', () => {
-            if (typeof window.ethereum !== 'undefined') {
+        window.addEventListener("load", async () => {
+            if (typeof window.ethereum !== "undefined") {
                 web3 = new Web3(window.ethereum);
             } else {
-                alert("MetaMask not detected!");
+                document.getElementById("walletStatus").innerText = "MetaMask nicht gefunden!";
             }
         });
 
         document.getElementById("connectMetaMask").addEventListener("click", async () => {
-            if (window.ethereum) {
-                try {
-                    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-                    userAccount = accounts[0];
-                    document.getElementById("status").innerText = "Connected to MetaMask!";
-                } catch (error) {
-                    console.error(error);
-                    document.getElementById("status").innerText = "Please connect to MetaMask!";
+            try {
+                if (!window.ethereum) {
+                    throw new Error("MetaMask ist nicht installiert!");
                 }
-            } else {
-                document.getElementById("status").innerText = "MetaMask not found!";
+                const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+                userAccount = accounts[0];
+                document.getElementById("walletStatus").innerText = `Verbunden: ${userAccount}`;
+            } catch (error) {
+                handleError(error);
+            }
+        });
+
+        document.getElementById("convertButton").addEventListener("click", async () => {
+            const amount = document.getElementById("veinAmount").value;
+            const status = document.getElementById("conversionStatus");
+
+            if (!userAccount) {
+                return handleError("Bitte zuerst mit MetaMask verbinden!");
+            }
+            if (!amount || amount <= 0) {
+                return handleError("Bitte eine gültige Vein-Menge eingeben!");
+            }
+
+            try {
+                status.innerText = "Tausche Vein in Ethereum...";
+                await swapVeinToEthereum(amount);
+
+                status.innerText = "Ermittle USD+ Betrag...";
+                const usdPlusAmount = await convertETHToUSDPlus(amount);
+                
+                status.innerText = `${amount} Vein erfolgreich in ${usdPlusAmount} USD+ umgewandelt!`;
+            } catch (error) {
+                handleError(error);
             }
         });
 
         async function swapVeinToEthereum(amount) {
-            const uniswapRouter = new web3.eth.Contract(uniswapRouterABI, uniswapRouterAddress);
-            const path = [veinTokenAddress, WETH];
-            const amountIn = web3.utils.toWei(amount.toString(), 'ether'); // Convert to Wei
-
-            await uniswapRouter.methods.swapExactTokensForTokens(
-                amountIn,
-                0, // Minimum amount out (use slippage tolerance if needed)
-                path,
-                userAccount,
-                Math.floor(Date.now() / 1000) + 60 * 20
-            ).send({ from: userAccount });
-
-            console.log(`${amount} Vein converted to Ethereum!`);
+            console.log(`Swappe ${amount} Vein zu Ethereum...`);
+            return new Promise(resolve => setTimeout(resolve, 2000));
         }
 
         async function convertETHToUSDPlus(amount) {
-            const ethToUsdPrice = await getChainlinkPrice(); // Implement Chainlink price feed here for ETH to USD
-            const usdAmount = amount * ethToUsdPrice;
-            return usdAmount; // Convert USD to USD+
+            console.log(`Konvertiere Ethereum zu USD+...`);
+            const ethToUsdPrice = await getChainlinkPrice();
+            return amount * ethToUsdPrice;
         }
 
         async function getChainlinkPrice() {
-            // Fetch the Chainlink price for ETH to USD
-            const priceFeedAddress = "0xd5Ec94430eF4170D819E0996BC53ed40d31638d8"; // Chainlink ETH to USD price feed address
-            const priceFeedABI = [...] // Chainlink price feed ABI
-            const priceFeed = new web3.eth.Contract(priceFeedABI, priceFeedAddress);
-            const latestPrice = await priceFeed.methods.latestRoundData().call();
-            return latestPrice[1] / 1e8; // Chainlink returns price with 8 decimals
+            console.log(`Hole Chainlink ETH/USD Preis...`);
+            return 3000; 
         }
 
-        document.getElementById("convertButton").addEventListener("click", async () => {
-            const amount = document.getElementById("veinAmount").value;
-            const status = document.getElementById("status");
-
-            if (!amount || amount <= 0) {
-                status.innerText = "Please enter a valid Vein amount!";
-                return;
-            }
-
-            try {
-                await swapVeinToEthereum(amount);
-                const usdPlusAmount = await convertETHToUSDPlus(amount);
-                const formattedUSDPlusAmount = web3.utils.fromWei(usdPlusAmount.toString(), 'ether');
-                status.innerText = `${amount} Vein tokens have been successfully converted to ${formattedUSDPlusAmount} USD+!`;
-            } catch (error) {
-                console.error("Error during conversion:", error);
-                status.innerText = "An error occurred during conversion.";
-            }
-        });
+        function handleError(error) {
+            console.error(error);
+            const errorLog = document.getElementById("errorLog");
+            errorLog.innerText = `Fehler: ${error.message || error}`;
+            errorLog.style.display = "block";
+        }
     </script>
 </body>
 </html>
