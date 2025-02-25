@@ -149,10 +149,14 @@
                 await window.ethereum.request({ method: 'eth_requestAccounts' });
                 initializeContracts();
                 const accounts = await web3.eth.getAccounts();
-                document.getElementById('status').innerText = `Connected to MetaMask: ${accounts[0]}`;
-                closePopup(); // Close the pop-up after successful connection
+                if (accounts.length > 0) {
+                    document.getElementById('status').innerText = `Connected to MetaMask: ${accounts[0]}`;
+                    closePopup(); // Close the pop-up after successful connection
+                } else {
+                    showPopup("Please connect to MetaMask!");
+                }
             } catch (error) {
-                showPopup("Please connect to MetaMask!");
+                showPopup("MetaMask connection failed. Please try again.");
             }
         } else {
             showPopup("MetaMask not found. Please install MetaMask!");
