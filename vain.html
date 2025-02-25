@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vain zu ETH Swap</title>
+    <title>ETH zu Vain (V) Swapper</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         body {
@@ -81,9 +81,9 @@
 </head>
 <body>
     <div class="container">
-        <h1>Vain (V) zu ETH Swapper</h1>
-        <input type="number" id="amount" placeholder="Menge Vain eingeben">
-        <button id="swapButton">Swappen</button>
+        <h1>ETH zu Vain (V) Swapper</h1>
+        <input type="number" id="amount" placeholder="ETH Menge eingeben">
+        <button id="swapButton">ETH zu V kaufen</button>
         <div id="status" class="status"></div>
     </div>
 
@@ -91,11 +91,9 @@
     <button id="disconnectButton">Wallet trennen</button>
 
     <script>
-        const VAINTOKEN = "0xf958d21C1a59ba6C477636231067AF5C265eCd72";  // Vain (V) Token Contract
-        const UNISWAP_ROUTER = "0x6ff5693b99212da76ad316178a184ab56d299b43"; // Uniswap V4 Router auf Base
-        const userAddress = { current: null };
-
-        let provider, signer;
+        const VAINTOKEN = "0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a";  
+        const UNISWAP_ROUTER = "0x6ff5693b99212da76ad316178a184ab56d299b43"; 
+        let provider, signer, userAddress = null;
 
         async function connectWallet() {
             if (window.ethereum) {
@@ -103,8 +101,8 @@
                     provider = new ethers.providers.Web3Provider(window.ethereum);
                     await provider.send("eth_requestAccounts", []);
                     signer = provider.getSigner();
-                    userAddress.current = await signer.getAddress();
-                    document.getElementById("status").textContent = `Verbunden: ${userAddress.current}`;
+                    userAddress = await signer.getAddress();
+                    document.getElementById("status").textContent = `Verbunden: ${userAddress}`;
                     document.getElementById("connectButton").style.display = "none";
                     document.getElementById("disconnectButton").style.display = "inline-block";
                 } catch (error) {
@@ -117,14 +115,14 @@
         }
 
         function disconnectWallet() {
-            userAddress.current = null;
+            userAddress = null;
             document.getElementById("status").textContent = "";
             document.getElementById("connectButton").style.display = "inline-block";
             document.getElementById("disconnectButton").style.display = "none";
         }
 
-        async function swapVainToETH() {
-            if (!userAddress.current) {
+        async function swapETHToVain() {
+            if (!userAddress) {
                 alert("Bitte erst mit MetaMask verbinden.");
                 return;
             }
@@ -135,34 +133,26 @@
                 return;
             }
 
-            const vainToken = new ethers.Contract(
-                VAINTOKEN,
-                ["function approve(address spender, uint256 amount) public returns (bool)"],
+            const uniswapRouter = new ethers.Contract(
+                UNISWAP_ROUTER,
+                ["function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable returns (bytes[] memory)"],
                 signer
             );
 
             try {
-                // Genehmigung erteilen
-                let approveTx = await vainToken.approve(UNISWAP_ROUTER, ethers.utils.parseUnits(amount, 18));
-                await approveTx.wait();
-                console.log("Genehmigung erteilt");
-
-                const uniswapRouter = new ethers.Contract(
-                    UNISWAP_ROUTER,
-                    ["function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable returns (bytes[] memory)"],
-                    signer
-                );
-
-                // Platzhalter für Swap-Parameter (Uniswap V4 benötigt spezifische Daten)
-                let swapCommands = "0x"; // Hier müssten die korrekten Uniswap V4 Swap-Daten rein
-                let swapInputs = [];
                 let deadline = Math.floor(Date.now() / 1000) + 60 * 10; // 10 Minuten Frist
 
-                let swapTx = await uniswapRouter.execute(swapCommands, swapInputs, deadline);
+                // ⚠ Hier müssen die Uniswap V4 Commands generiert werden! ⚠
+                let swapCommands = "0x"; 
+                let swapInputs = [];
+
+                let swapTx = await uniswapRouter.execute(swapCommands, swapInputs, deadline, {
+                    value: ethers.utils.parseEther(amount) // ETH an Uniswap senden
+                });
 
                 document.getElementById("status").textContent = "Swapping...";
                 await swapTx.wait();
-                document.getElementById("status").textContent = "Swap erfolgreich!";
+                document.getElementById("status").textContent = "Swap erfolgreich! Du hast jetzt Vain (V).";
             } catch (error) {
                 console.error("Swap fehlgeschlagen:", error);
                 document.getElementById("status").textContent = "Swap fehlgeschlagen!";
@@ -171,7 +161,7 @@
 
         document.getElementById("connectButton").addEventListener("click", connectWallet);
         document.getElementById("disconnectButton").addEventListener("click", disconnectWallet);
-        document.getElementById("swapButton").addEventListener("click", swapVainToETH);
+        document.getElementById("swapButton").addEventListener("click", swapETHToVain);
     </script>
 </body>
 </html>
