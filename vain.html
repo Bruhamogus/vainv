@@ -13,6 +13,7 @@
             align-items: center;
             height: 100vh;
             margin: 0;
+            position: relative;
         }
 
         .container {
@@ -29,7 +30,7 @@
             margin-bottom: 20px;
         }
 
-        #connectButton {
+        #connectButton, #disconnectButton {
             background-color: #f6851b;
             color: white;
             border: none;
@@ -40,7 +41,7 @@
             transition: background-color 0.3s ease;
         }
 
-        #connectButton:hover {
+        #connectButton:hover, #disconnectButton:hover {
             background-color: #e4761b;
         }
 
@@ -49,26 +50,48 @@
             font-size: 14px;
             color: #333;
         }
+
+        /* Positionierung der Buttons oben rechts */
+        #connectButton, #disconnectButton {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 12px;
+            padding: 8px 12px;
+        }
+
+        #disconnectButton {
+            display: none;
+        }
+
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Verbinde dein MetaMask Wallet</h1>
-        <button id="connectButton">Mit MetaMask verbinden</button>
         <div id="walletAddress" class="address"></div>
     </div>
 
+    <button id="connectButton">Mit MetaMask verbinden</button>
+    <button id="disconnectButton">Wallet trennen</button>
+
     <script>
         const connectButton = document.getElementById("connectButton");
+        const disconnectButton = document.getElementById("disconnectButton");
         const walletAddress = document.getElementById("walletAddress");
+
+        let currentAccount = null;
 
         // Funktion zur Verbindung mit MetaMask
         connectButton.addEventListener("click", async () => {
             if (window.ethereum) {
                 try {
                     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-                    walletAddress.textContent = `Verbunden: ${accounts[0]}`;
+                    currentAccount = accounts[0];
+                    walletAddress.textContent = `Verbunden: ${currentAccount}`;
                     connectButton.textContent = 'Erfolgreich verbunden!';
+                    disconnectButton.style.display = 'inline-block'; // Zeige den Disconnect-Button an
+                    connectButton.style.display = 'none'; // Verstecke den Connect-Button
                 } catch (error) {
                     console.error('Fehler bei der Verbindung mit MetaMask:', error);
                     walletAddress.textContent = 'Verbindung fehlgeschlagen.';
@@ -77,6 +100,27 @@
                 walletAddress.textContent = 'MetaMask ist nicht installiert.';
             }
         });
+
+        // Funktion zum Trennen der Verbindung
+        disconnectButton.addEventListener("click", () => {
+            currentAccount = null;
+            walletAddress.textContent = '';
+            connectButton.textContent = 'Mit MetaMask verbinden';
+            connectButton.style.display = 'inline-block'; // Zeige den Connect-Button wieder an
+            disconnectButton.style.display = 'none'; // Verstecke den Disconnect-Button
+        });
+
+        // Prüfen, ob das Wallet bereits verbunden ist
+        if (window.ethereum) {
+            ethereum.request({ method: 'eth_accounts' }).then((accounts) => {
+                if (accounts.length > 0) {
+                    currentAccount = accounts[0];
+                    walletAddress.textContent = `Verbunden: ${currentAccount}`;
+                    connectButton.style.display = 'none'; // Verstecke den Connect-Button
+                    disconnectButton.style.display = 'inline-block'; // Zeige den Disconnect-Button an
+                }
+            });
+        }
     </script>
 </body>
 </html>
