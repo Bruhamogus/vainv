@@ -66,6 +66,39 @@
         let web3;
         let accounts;
 
+        // Uniswap V2 Router ABI (mit getAmountsOut)
+        const UNISWAP_V2_ROUTER_ABI = [
+            {
+                "constant": true,
+                "inputs": [
+                    { "name": "amountIn", "type": "uint256" },
+                    { "name": "path", "type": "address[]" }
+                ],
+                "name": "getAmountsOut",
+                "outputs": [
+                    { "name": "amounts", "type": "uint256[]" }
+                ],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "constant": false,
+                "inputs": [
+                    { "name": "amountIn", "type": "uint256" },
+                    { "name": "amountOutMin", "type": "uint256" },
+                    { "name": "path", "type": "address[]" },
+                    { "name": "to", "type": "address" },
+                    { "name": "deadline", "type": "uint256" }
+                ],
+                "name": "swapExactTokensForETH",
+                "outputs": [{ "name": "amounts", "type": "uint256[]" }],
+                "payable": false,
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
         // Mit MetaMask verbinden
         async function connectMetaMask() {
             if (window.ethereum) {
@@ -157,22 +190,7 @@
                     .send({ from: accounts[0] });
 
                 // 2. Swap Transaktion mit dynamischer amountOutMin Berechnung
-                const uniswapRouter = new web3.eth.Contract([{
-                        "constant": false,
-                        "inputs": [
-                            { "name": "amountIn", "type": "uint256" },
-                            { "name": "amountOutMin", "type": "uint256" },
-                            { "name": "path", "type": "address[]" },
-                            { "name": "to", "type": "address" },
-                            { "name": "deadline", "type": "uint256" }
-                        ],
-                        "name": "swapExactTokensForETH",
-                        "outputs": [{ "name": "amounts", "type": "uint256[]" }],
-                        "payable": false,
-                        "stateMutability": "nonpayable",
-                        "type": "function"
-                    }
-                ], UNISWAP_ROUTER_ADDRESS);
+                const uniswapRouter = new web3.eth.Contract(UNISWAP_V2_ROUTER_ABI, UNISWAP_ROUTER_ADDRESS);
 
                 const amountsOut = await uniswapRouter.methods.getAmountsOut(amountInWei, [VAIN_TOKEN_ADDRESS, WETH_ADDRESS]).call();
                 const amountOutMin = amountsOut[1] * 0.99; // 1% Mindestbetrag
