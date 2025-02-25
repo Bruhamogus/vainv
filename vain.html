@@ -1,41 +1,123 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vein to USD+ Umrechner</title>
-    <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
+    <title>Vein to USD+ Conversion</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .status {
+            margin-top: 20px;
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
 </head>
 <body>
-    <h1>Vein (V) in USD+ umrechnen</h1>
-    <label for="amount">Menge Vein (V): </label>
-    <input type="number" id="amount" placeholder="Gib die Menge ein">
-    <button onclick="convert()">Umrechnen</button>
+    <h1>Convert Vein to USD+</h1>
+    <button id="connectMetaMask" class="button">Connect to MetaMask</button>
+    <input type="number" id="veinAmount" placeholder="Enter Vein amount" />
+    <button id="convertButton" class="button">Convert to USD+</button>
+    <p id="status" class="status"></p>
 
-    <p id="result">Ergebnis: -</p>
-
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
     <script>
-        const web3 = new Web3(window.ethereum);
+        let web3;
+        let userAccount;
+        const veinTokenAddress = "0x4cf38311571bae9e82edea467e8a5fbb306731d7477447ce44b9f4a09e26706a"; // Vein Token Address
+        const uniswapRouterAddress = "0xe592427a0aece92de3edee1f18e0157c05861564"; // Uniswap V3 Router Address
+        const WETH = "0xC02aaA39b223FE8D0A0e5C4f27eAd9083C756Cc2"; // WETH Token Address
+        const usdPlusAddress = "0x..."; // USD+ Contract Address (Update with correct one)
 
-        // Smart Contract-Adressen (diese müssen noch hinzugefügt werden)
-        const veinAddress = "0xf958d21C1a59ba6C477636231067AF5C265eCd72";  // Vein Contract Address
-        const usdPlusAddress = "0xd5Ec94430eF4170D819E0996BC53ed40d31638d8";  // USD+ Contract Address
+        const uniswapRouterABI = [...] // Uniswap V3 Router ABI, you need to define this
 
-        async function convert() {
-            const amount = document.getElementById('amount').value;
-            if (amount <= 0) return;
+        window.addEventListener('load', () => {
+            if (typeof window.ethereum !== 'undefined') {
+                web3 = new Web3(window.ethereum);
+            } else {
+                alert("MetaMask not detected!");
+            }
+        });
 
-            // Beispiel für Umrechnung: Vein -> USD+
-            const veinPrice = await getVeinPriceInUSDPlus();  // Preis aus API oder Chainlink holen
-            const result = amount * veinPrice;
+        document.getElementById("connectMetaMask").addEventListener("click", async () => {
+            if (window.ethereum) {
+                try {
+                    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                    userAccount = accounts[0];
+                    document.getElementById("status").innerText = "Connected to MetaMask!";
+                } catch (error) {
+                    console.error(error);
+                    document.getElementById("status").innerText = "Please connect to MetaMask!";
+                }
+            } else {
+                document.getElementById("status").innerText = "MetaMask not found!";
+            }
+        });
 
-            document.getElementById('result').innerText = `Ergebnis: ${result} USD+`;
+        async function swapVeinToEthereum(amount) {
+            const uniswapRouter = new web3.eth.Contract(uniswapRouterABI, uniswapRouterAddress);
+            const path = [veinTokenAddress, WETH];
+            const amountIn = web3.utils.toWei(amount.toString(), 'ether'); // Convert to Wei
+
+            await uniswapRouter.methods.swapExactTokensForTokens(
+                amountIn,
+                0, // Minimum amount out (use slippage tolerance if needed)
+                path,
+                userAccount,
+                Math.floor(Date.now() / 1000) + 60 * 20
+            ).send({ from: userAccount });
+
+            console.log(`${amount} Vein converted to Ethereum!`);
         }
 
-        async function getVeinPriceInUSDPlus() {
-            // Beispielhafter Abruf des Preises (hier müsste eine API oder ein Feed eingebaut werden)
-            return 0.5; // Ein Beispielwert
+        async function convertETHToUSDPlus(amount) {
+            const ethToUsdPrice = await getChainlinkPrice(); // Implement Chainlink price feed here for ETH to USD
+            const usdAmount = amount * ethToUsdPrice;
+            return usdAmount; // Convert USD to USD+
         }
+
+        async function getChainlinkPrice() {
+            // Fetch the Chainlink price for ETH to USD
+            const priceFeedAddress = "0xd5Ec94430eF4170D819E0996BC53ed40d31638d8"; // Chainlink ETH to USD price feed address
+            const priceFeedABI = [...] // Chainlink price feed ABI
+            const priceFeed = new web3.eth.Contract(priceFeedABI, priceFeedAddress);
+            const latestPrice = await priceFeed.methods.latestRoundData().call();
+            return latestPrice[1] / 1e8; // Chainlink returns price with 8 decimals
+        }
+
+        document.getElementById("convertButton").addEventListener("click", async () => {
+            const amount = document.getElementById("veinAmount").value;
+            const status = document.getElementById("status");
+
+            if (!amount || amount <= 0) {
+                status.innerText = "Please enter a valid Vein amount!";
+                return;
+            }
+
+            try {
+                await swapVeinToEthereum(amount);
+                const usdPlusAmount = await convertETHToUSDPlus(amount);
+                const formattedUSDPlusAmount = web3.utils.fromWei(usdPlusAmount.toString(), 'ether');
+                status.innerText = `${amount} Vein tokens have been successfully converted to ${formattedUSDPlusAmount} USD+!`;
+            } catch (error) {
+                console.error("Error during conversion:", error);
+                status.innerText = "An error occurred during conversion.";
+            }
+        });
     </script>
 </body>
 </html>
