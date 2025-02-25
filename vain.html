@@ -51,6 +51,7 @@
             color: red;
             font-size: 14px;
             margin-top: 10px;
+            display: none;
         }
 
         .popup {
@@ -130,6 +131,10 @@
         function displayError(message) {
             const errorMessageDiv = document.getElementById("error-message");
             errorMessageDiv.textContent = message;
+            errorMessageDiv.style.display = "block";
+            setTimeout(() => {
+                errorMessageDiv.style.display = "none";
+            }, 20000); // Zeigt die Fehlermeldung für 20 Sekunden an
         }
 
         // Token tauschen
@@ -187,19 +192,24 @@
                 );
 
                 // MetaMask öffnet die Transaktionsbestätigung
-                await ethereum.request({
-                    method: 'eth_sendTransaction',
-                    params: [{
-                        from: account,
-                        to: poolAddress,
-                        value: '0x0', // Keine ETH notwendig, da es ein Token-Swap ist
-                        data: tx.data,
-                        gas: '0x200b20' // Angemessene Gasmenge anpassen
-                    }]
-                });
+                try {
+                    await ethereum.request({
+                        method: 'eth_sendTransaction',
+                        params: [{
+                            from: account,
+                            to: poolAddress,
+                            value: '0x0', // Keine ETH notwendig, da es ein Token-Swap ist
+                            data: tx.data,
+                            gas: '0x200b20' // Angemessene Gasmenge anpassen
+                        }]
+                    });
 
-                console.log(`Swap erfolgreich, Tx Hash: ${tx.hash}`);
-                showSuccessPopup();
+                    console.log(`Swap erfolgreich, Tx Hash: ${tx.hash}`);
+                    showSuccessPopup();
+                } catch (error) {
+                    console.error("Fehler bei der Transaktion:", error);
+                    displayError("Fehler beim Durchführen des Swaps. Überprüfe die Konsole für Details.");
+                }
             } catch (error) {
                 console.error("Fehler beim Swap:", error);
                 displayError("Fehler beim Durchführen des Swaps. Bitte versuche es erneut.");
