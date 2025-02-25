@@ -3,125 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vein zu USD+ Konverter</title>
+    <title>MetaMask Verbindung</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            padding: 20px;
-            text-align: center;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
         }
-        .button {
-            padding: 10px 20px;
-            background-color: #007BFF;
+
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 300px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        #connectButton {
+            background-color: #f6851b;
             color: white;
             border: none;
-            cursor: pointer;
+            padding: 15px;
+            font-size: 16px;
             border-radius: 5px;
-            margin-top: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
         }
-        .status {
-            margin-top: 20px;
-            font-weight: bold;
-            color: green;
+
+        #connectButton:hover {
+            background-color: #e4761b;
         }
-        .error {
+
+        .address {
             margin-top: 20px;
-            color: red;
-            white-space: pre-wrap;
-            border: 1px solid red;
-            padding: 10px;
-            background: #ffe6e6;
-            display: none;
+            font-size: 14px;
+            color: #333;
         }
     </style>
 </head>
 <body>
-    <h1>Vein zu USD+ Konverter</h1>
-    <button id="connectMetaMask" class="button">Mit MetaMask verbinden</button>
-    <p id="walletStatus" class="status"></p>
+    <div class="container">
+        <h1>Verbinde dein MetaMask Wallet</h1>
+        <button id="connectButton">Mit MetaMask verbinden</button>
+        <div id="walletAddress" class="address"></div>
+    </div>
 
-    <input type="number" id="veinAmount" placeholder="Gib die Vein-Menge ein" min="0" />
-    <button id="convertButton" class="button">In USD+ umwandeln</button>
-    
-    <p id="conversionStatus" class="status"></p>
-    <div id="errorLog" class="error"></div>
-
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
     <script>
-        let web3;
-        let userAccount;
-        const veinTokenAddress = process.env.SMARTCONTRACT;
-        const uniswapRouterAddress = "0xe592427a0aece92de3edee1f18e0157c05861564";
-        const chainlinkUSDPriceFeed = "0xd5Ec94430eF4170D819E0996BC53ed40d31638d8";
+        const connectButton = document.getElementById("connectButton");
+        const walletAddress = document.getElementById("walletAddress");
 
-        window.addEventListener("load", async () => {
-            if (typeof window.ethereum !== "undefined") {
-                web3 = new Web3(window.ethereum);
-            } else {
-                document.getElementById("walletStatus").innerText = "MetaMask nicht gefunden!";
-            }
-        });
-
-        document.getElementById("connectMetaMask").addEventListener("click", async () => {
-            try {
-                if (!window.ethereum) {
-                    throw new Error("MetaMask ist nicht installiert!");
+        // Funktion zur Verbindung mit MetaMask
+        connectButton.addEventListener("click", async () => {
+            if (window.ethereum) {
+                try {
+                    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                    walletAddress.textContent = `Verbunden: ${accounts[0]}`;
+                    connectButton.textContent = 'Erfolgreich verbunden!';
+                } catch (error) {
+                    console.error('Fehler bei der Verbindung mit MetaMask:', error);
+                    walletAddress.textContent = 'Verbindung fehlgeschlagen.';
                 }
-                const accounts = await ethereum.request({ method: "eth_requestAccounts" });
-                userAccount = accounts[0];
-                document.getElementById("walletStatus").innerText = `Verbunden: ${userAccount}`;
-            } catch (error) {
-                handleError(error);
+            } else {
+                walletAddress.textContent = 'MetaMask ist nicht installiert.';
             }
         });
-
-        document.getElementById("convertButton").addEventListener("click", async () => {
-            const amount = document.getElementById("veinAmount").value;
-            const status = document.getElementById("conversionStatus");
-
-            if (!userAccount) {
-                return handleError("Bitte zuerst mit MetaMask verbinden!");
-            }
-            if (!amount || amount <= 0) {
-                return handleError("Bitte eine gültige Vein-Menge eingeben!");
-            }
-
-            try {
-                status.innerText = "Tausche Vein in Ethereum...";
-                await swapVeinToEthereum(amount);
-
-                status.innerText = "Ermittle USD+ Betrag...";
-                const usdPlusAmount = await convertETHToUSDPlus(amount);
-                
-                status.innerText = `${amount} Vein erfolgreich in ${usdPlusAmount} USD+ umgewandelt!`;
-            } catch (error) {
-                handleError(error);
-            }
-        });
-
-        async function swapVeinToEthereum(amount) {
-            console.log(`Swappe ${amount} Vein zu Ethereum...`);
-            return new Promise(resolve => setTimeout(resolve, 2000));
-        }
-
-        async function convertETHToUSDPlus(amount) {
-            console.log(`Konvertiere Ethereum zu USD+...`);
-            const ethToUsdPrice = await getChainlinkPrice();
-            return amount * ethToUsdPrice;
-        }
-
-        async function getChainlinkPrice() {
-            console.log(`Hole Chainlink ETH/USD Preis...`);
-            return 3000; 
-        }
-
-        function handleError(error) {
-            console.error(error);
-            const errorLog = document.getElementById("errorLog");
-            errorLog.innerText = `Fehler: ${error.message || error}`;
-            errorLog.style.display = "block";
-            navigator.clipboard.writeText(error.message || error);
-        }
     </script>
 </body>
 </html>
