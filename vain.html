@@ -66,39 +66,6 @@
         let web3;
         let accounts;
 
-        // Uniswap V2 Router ABI (mit getAmountsOut)
-        const UNISWAP_V2_ROUTER_ABI = [
-            {
-                "constant": true,
-                "inputs": [
-                    { "name": "amountIn", "type": "uint256" },
-                    { "name": "path", "type": "address[]" }
-                ],
-                "name": "getAmountsOut",
-                "outputs": [
-                    { "name": "amounts", "type": "uint256[]" }
-                ],
-                "payable": false,
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "constant": false,
-                "inputs": [
-                    { "name": "amountIn", "type": "uint256" },
-                    { "name": "amountOutMin", "type": "uint256" },
-                    { "name": "path", "type": "address[]" },
-                    { "name": "to", "type": "address" },
-                    { "name": "deadline", "type": "uint256" }
-                ],
-                "name": "swapExactTokensForETH",
-                "outputs": [{ "name": "amounts", "type": "uint256[]" }],
-                "payable": false,
-                "stateMutability": "nonpayable",
-                "type": "function"
-            }
-        ];
-
         // Mit MetaMask verbinden
         async function connectMetaMask() {
             if (window.ethereum) {
@@ -132,12 +99,13 @@
             }, 5000);
         }
 
-        // Erfolgreichen Swap anzeigen
+        // Erfolg anzeigen
         function showSuccess(message) {
             const errorMessage = document.getElementById('errorMessage');
             errorMessage.textContent = message;
-            errorMessage.style.backgroundColor = "rgba(0, 255, 0, 0.7)";
+            errorMessage.style.backgroundColor = "rgba(0, 255, 0, 0.7)"; // Grüne Hintergrundfarbe für Erfolg
             errorMessage.style.display = "block";
+
             setTimeout(() => {
                 errorMessage.style.display = "none";
             }, 5000);
@@ -185,23 +153,37 @@
                 const decimals = await tokenContract.methods.decimals().call();
                 const amountInWei = web3.utils.toWei(amountInVain.toString(), 'ether');
 
-                // 1. Approve Token Transfer für Uniswap Router
+                // Genehmigung für Token-Übertragung
                 await tokenContract.methods.approve(UNISWAP_ROUTER_ADDRESS, amountInWei)
                     .send({ from: accounts[0] });
 
-                // 2. Swap Transaktion mit dynamischer amountOutMin Berechnung
-                const uniswapRouter = new web3.eth.Contract(UNISWAP_V2_ROUTER_ABI, UNISWAP_ROUTER_ADDRESS);
+                // Berechnung des erwarteten Auszahlungsbetrags (amountOutMin)
+                const uniswapRouter = new web3.eth.Contract([{
+                    "constant": false,
+                    "inputs": [
+                        { "name": "amountIn", "type": "uint256" },
+                        { "name": "amountOutMin", "type": "uint256" },
+                        { "name": "path", "type": "address[]" },
+                        { "name": "to", "type": "address" },
+                        { "name": "deadline", "type": "uint256" }
+                    ],
+                    "name": "swapExactTokensForETH",
+                    "outputs": [{ "name": "amounts", "type": "uint256[]" }],
+                    "payable": false,
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                }], UNISWAP_ROUTER_ADDRESS);
 
+                // AmountOutMin mit 1% Slippage
                 const amountsOut = await uniswapRouter.methods.getAmountsOut(amountInWei, [VAIN_TOKEN_ADDRESS, WETH_ADDRESS]).call();
-                const amountOutMin = amountsOut[1] * 0.99; // 1% Mindestbetrag
+                const amountOutMin = amountsOut[1] * 0.99;
 
-                console.log(`AmountIn: ${amountInWei}, AmountOutMin: ${amountOutMin}`);
+                // Gaspreis und Gaslimit
+                const gasPrice = await web3.eth.getGasPrice();
+                const gasLimit = 300000;
 
-                // Gas Preis und Gas Limit einstellen
-                const gasPrice = await web3.eth.getGasPrice(); // Hole den aktuellen Gaspreis
-                const gasLimit = 300000; // Setze das Gas Limit für den Swap
-
-                await uniswapRouter.methods.swapExactTokensForETH(
+                // Swap durchführen
+                const result = await uniswapRouter.methods.swapExactTokensForETH(
                     amountInWei,
                     amountOutMin,
                     [VAIN_TOKEN_ADDRESS, WETH_ADDRESS],
@@ -209,15 +191,16 @@
                     Math.floor(Date.now() / 1000) + 60 * 10 // 10 Minuten Deadline
                 ).send({
                     from: accounts[0],
-                    gas: gasLimit, // Gas Limit anpassen
-                    gasPrice: gasPrice // Gas Preis anpassen
+                    gas: gasLimit,
+                    gasPrice: gasPrice
                 });
 
+                console.log("Swap erfolgreich:", result);
                 showSuccess("Swap erfolgreich durchgeführt!");
 
             } catch (error) {
+                console.error("Fehlerdetails:", error);
                 showError("Fehler beim Swap: " + error.message);
-                console.error(error); // Für Debugging
             }
         }
 
