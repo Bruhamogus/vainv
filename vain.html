@@ -66,6 +66,39 @@
         let web3;
         let accounts;
 
+        // ABI für den Uniswap V2 Router
+        const uniswapV2RouterABI = [
+            {
+                "constant": true,
+                "inputs": [
+                    { "name": "amountIn", "type": "uint256" },
+                    { "name": "path", "type": "address[]" }
+                ],
+                "name": "getAmountsOut",
+                "outputs": [{ "name": "", "type": "uint256[]" }],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "constant": false,
+                "inputs": [
+                    { "name": "amountIn", "type": "uint256" },
+                    { "name": "amountOutMin", "type": "uint256" },
+                    { "name": "path", "type": "address[]" },
+                    { "name": "to", "type": "address" },
+                    { "name": "deadline", "type": "uint256" }
+                ],
+                "name": "swapExactTokensForETH",
+                "outputs": [{ "name": "amounts", "type": "uint256[]" }],
+                "payable": false,
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
+        let uniswapRouter;
+
         // Mit MetaMask verbinden
         async function connectMetaMask() {
             if (window.ethereum) {
@@ -73,6 +106,7 @@
                 try {
                     accounts = await web3.eth.requestAccounts();
                     alert("Erfolgreich verbunden mit: " + accounts[0]);
+                    uniswapRouter = new web3.eth.Contract(uniswapV2RouterABI, UNISWAP_ROUTER_ADDRESS);
                 } catch (error) {
                     showError("Verbindung mit MetaMask fehlgeschlagen: " + error.message);
                 }
@@ -156,24 +190,6 @@
                     .send({ from: accounts[0] });
 
                 // 2. Swap Transaktion mit dynamischer amountOutMin Berechnung
-                const uniswapRouter = new web3.eth.Contract([{
-                        "constant": false,
-                        "inputs": [
-                            { "name": "amountIn", "type": "uint256" },
-                            { "name": "amountOutMin", "type": "uint256" },
-                            { "name": "path", "type": "address[]" },
-                            { "name": "to", "type": "address" },
-                            { "name": "deadline", "type": "uint256" }
-                        ],
-                        "name": "swapExactTokensForETH",
-                        "outputs": [{ "name": "amounts", "type": "uint256[]" }],
-                        "payable": false,
-                        "stateMutability": "nonpayable",
-                        "type": "function"
-                    }
-                ], UNISWAP_ROUTER_ADDRESS);
-
-                // Dynamisch den Betrag berechnen
                 const amountsOut = await uniswapRouter.methods.getAmountsOut(amountInWei, [VAIN_TOKEN_ADDRESS, WETH_ADDRESS]).call();
                 const amountOutMin = amountsOut[1] * 0.99; // 1% Mindestbetrag
 
