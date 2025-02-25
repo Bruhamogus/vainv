@@ -29,7 +29,7 @@
         #connectButton:hover, #swapButton:hover {
             background-color: #555;
         }
-        #errorMessage {
+        #errorMessage, #successMessage {
             position: fixed;
             bottom: 10px;
             left: 10px;
@@ -38,6 +38,9 @@
             padding: 10px;
             border-radius: 5px;
             display: none;
+        }
+        #successMessage {
+            background-color: rgba(0, 255, 0, 0.7);
         }
         #amountInput {
             padding: 10px;
@@ -57,6 +60,7 @@
     <button id="swapButton">Vain → ETH Swappen</button>
     <div id="amountDisplay">Du möchtest <span id="amountText">0</span> Vain tauschen</div>
     <div id="errorMessage"></div>
+    <div id="successMessage"></div>
 
     <script>
         const UNISWAP_ROUTER_ADDRESS = "0x1111111254EEB25477B68fb85Ed929f73A960582"; // Uniswap V2 Router auf Base
@@ -99,6 +103,17 @@
             }, 5000);
         }
 
+        // Erfolgsmeldung anzeigen
+        function showSuccess(message) {
+            const successMessage = document.getElementById('successMessage');
+            successMessage.textContent = message;
+            successMessage.style.display = "block";
+
+            setTimeout(() => {
+                successMessage.style.display = "none";
+            }, 5000);
+        }
+
         // Swap von Vain zu ETH durchführen
         async function swapVainToEthereum() {
             const amountInVain = document.getElementById('amountInput').value;
@@ -115,8 +130,7 @@
             document.getElementById('amountText').textContent = amountInVain;
 
             try {
-                const tokenContract = new web3.eth.Contract([
-                    {
+                const tokenContract = new web3.eth.Contract([{
                         "constant": true,
                         "inputs": [],
                         "name": "decimals",
@@ -147,8 +161,7 @@
                     .send({ from: accounts[0] });
 
                 // 2. Swap Transaktion
-                const uniswapRouter = new web3.eth.Contract([
-                    {
+                const uniswapRouter = new web3.eth.Contract([{
                         "constant": false,
                         "inputs": [
                             { "name": "amountIn", "type": "uint256" },
@@ -173,7 +186,7 @@
                     Math.floor(Date.now() / 1000) + 60 * 10 // 10 Minuten Deadline
                 ).send({ from: accounts[0] });
 
-                alert("Swap erfolgreich durchgeführt!");
+                showSuccess("Swap erfolgreich durchgeführt!");
 
             } catch (error) {
                 showError("Fehler beim Swap: " + error.message);
